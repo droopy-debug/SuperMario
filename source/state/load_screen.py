@@ -2,6 +2,10 @@
 from ..components import info
 import pygame
 class load_Screen:
+
+    def __init__(self):
+        self.music_state = 'death_wav'
+
     def start(self,game_info):                                    #调用在tools.update()
         self.game_info = game_info
         self.finished = False
@@ -17,7 +21,8 @@ class load_Screen:
             self.timer = pygame.time.get_ticks()
         elif pygame.time.get_ticks() - self.timer > 2000:
             self.finished = True
-            self.timer = 0;
+            self.timer = 0
+            self.music_state = 'main_theme'
     def draw(self, surface):
         surface.fill((0,0,0))
         self.info.draw(surface)

@@ -2,6 +2,7 @@
 import os
 import pygame
 import random
+from . import sound
 
 #定义工厂类
 class Game:
@@ -11,6 +12,9 @@ class Game:
         self.keys = pygame.key.get_pressed()
         self.state_dict = state_dict
         self.state = self.state_dict[start_state]
+        self.music = sound.Music()
+        self.music_state = 'main_theme'
+
 
     def update(self):
         if self.state.finished:                      #如果当前阶段已经结束，就换成下一个阶段
@@ -19,7 +23,10 @@ class Game:
             self.state.finished = False
             self.state = self.state_dict[next_state]
             self.state.start(game_info)
+            # print(self.state.music_state)
+            self.music.update(self.state.music_state)
         self.state.update(self.screen,self.keys)
+
 
     def run(self):
         while True:

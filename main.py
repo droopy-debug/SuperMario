@@ -11,7 +11,7 @@ def main():
         'load_screen': load_screen.load_Screen(),
         'level': level.level(),
         'game_over':load_screen.GameOver()
-    }
+    }# 创建游戏的各个状态对象存放在一个字典中
 
     game = tools.Game(state_dict,'main_menu')       #让主控类来决定状态之间的变化
 
@@ -19,6 +19,7 @@ def main():
     #state = main_menu.MainMenu()
     #state = load_screen.LoadScreen()
     #state = level.level()
+
     game.run()
 
 if __name__ == '__main__':             #代码被当做脚本执行的时候才运行里面的main

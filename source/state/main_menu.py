@@ -14,7 +14,9 @@ class MainMenu:
             'lives':3,
             'player_state':'samll'
         }
+        self.music_state = 'main_theme'
         self.start(game_info)
+
     def start(self,game_info):                                    #每次重置游戏
         self.game_info = game_info
         self.setup_background()

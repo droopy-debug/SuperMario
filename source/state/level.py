@@ -11,6 +11,7 @@ class level:
         self.game_info = game_info
         self.finished = False
         self.next = 'game_over'
+        self.music_state = 'main_theme'
         self.info = info.Info('level',self.game_info)
         self.load_map_data()
         self.setup_start_positions()
@@ -211,7 +212,6 @@ class level:
             elif powerup.name == 'fireball':
                 pass
             elif powerup.name == 'fireflower':
-                print("222")
                 # 火焰花让玩家能够发射子弹
                 self.player.state = 'big2fire'
                 powerup.kill()
@@ -358,8 +358,10 @@ class level:
 
     def update_game_info(self):                         #死亡后更新数据
         if self.player.dead:
+            self.music_state = 'death_wav'
             self.game_info['lives'] -= 1
         if self.game_info['lives'] == 0:                          #死亡后选择结束还是重生
+
             self.next = 'game_over'
         else:
             self.next = 'load_screen'
