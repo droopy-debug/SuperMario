@@ -175,7 +175,7 @@ class level:
                 # 变大的马里奥撞到敌人会变小
                 self.player.state = 'big2small'
                 self.player.hurt_immune = True  # 由大变小的时候有一段时间的伤害免疫
-                print(self.player.hurt_immune)
+                #print(self.player.hurt_immune)
             else:
                 # 小马里奥撞到敌人会直接狗带
                 self.player.go_die()
@@ -184,7 +184,14 @@ class level:
         if shell:
             #print(shell.state)
             if shell.state == 'slide':
-                self.player.go_die()
+                if self.player.big:
+                    # 变大的马里奥撞到敌人会变小
+                    self.player.state = 'big2small'
+                    self.player.hurt_immune = True  # 由大变小的时候有一段时间的伤害免疫
+                    # print(self.player.hurt_immune)
+                else:
+                    # 小马里奥撞到敌人会直接狗带
+                    self.player.go_die()
             else:
                 if self.player.rect.x < shell.rect.x:
                     shell.x_vel = 10

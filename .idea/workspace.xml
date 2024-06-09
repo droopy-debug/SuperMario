@@ -4,7 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ff881590-5e15-40a9-a8cb-4e8b38f048e8" name="更改" comment="the day last" />
+    <list default="true" id="ff881590-5e15-40a9-a8cb-4e8b38f048e8" name="更改" comment="the day last">
+      <change beforePath="$PROJECT_DIR$/source/components/enemy.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/enemy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/components/player.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/player.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/components/powerup.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/powerup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/constants.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/constants.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/state/level.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/level.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

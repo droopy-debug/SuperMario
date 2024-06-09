@@ -117,7 +117,7 @@ class player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
 
     def update(self,keys,level):
-        print(self.state)
+        #print(self.state)
         self.current_time = pygame.time.get_ticks()
         self.handle_states(keys,level)
         self.is_hurt_immune()                                      #无敌状态
