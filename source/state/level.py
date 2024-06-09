@@ -117,7 +117,7 @@ class level:
     def update(self, surface ,keys):
 
         self.current_time = pygame.time.get_ticks()
-        self.player.update(keys)
+        self.player.update(keys,self)
 
         if self.player.dead:
             if self.current_time - self.player.death_timer > 3000:
@@ -174,7 +174,6 @@ class level:
             if self.player.big:
                 # 变大的马里奥撞到敌人会变小
                 self.player.state = 'big2small'
-                print(self.player.state)
                 self.player.hurt_immune = True  # 由大变小的时候有一段时间的伤害免疫
                 print(self.player.hurt_immune)
             else:
@@ -193,10 +192,22 @@ class level:
                     shell.direction = 1
                 else:
                     shell.x_vel = -10
-                    shell.rect.x -= 40
+                    shell.rect.x -= 14
                     shell.direction = 0
                 shell.state = 'slide'
-
+        powerup = pygame.sprite.spritecollideany(self.player,self.powerup_group)
+        if powerup:
+            if powerup.name == 'mushroom':
+                # 蘑菇让玩家变大
+                self.player.state = 'small2big'
+                powerup.kill()
+            elif powerup.name == 'fireball':
+                pass
+            elif powerup.name == 'fireflower':
+                print("222")
+                # 火焰花让玩家能够发射子弹
+                self.player.state = 'big2fire'
+                powerup.kill()
 
 
     def check_y_collisions(self):
@@ -230,27 +241,22 @@ class level:
                 self.dying_group.add(enemy)
             if self.player.y_velocity < 0:            #从下往上顶
                 how = 'bumped'
-                enemy.go_die(how)
+                enemy.go_die(how, 1 if self.player.face_right else -1)
             elif self.player.y_velocity > 0:                                    #从上往下，踩死
                 how = 'trampled'
                 self.player.state = 'jump'
                 self.player.rect.bottom = enemy.rect.top
                 self.player.y_velocity = self.player.jump_vel * 0.8            #一个小跳
-                enemy.go_die(how)
+                enemy.go_die(how,1 if self.player.face_right else -1)
             #print("猜到了")
 
-        powerup = pygame.sprite.spritecollideany(self.player,self.powerup_group)
-        if powerup:
-            powerup.kill()
-            if powerup.name == 'mushroom':
-                self.player.state = 'small2big'
         self.check_will_fall(self.player)
         #print(self.player.state)
 
 
     def check_will_fall(self,sprite):
         sprite.rect.y += 1                                                   #试探性下落一个像素，如果没有碰撞则修改状态为下落
-        check_group = pygame.sprite.Group(self.ground_items_group,self.brick_group)
+        check_group = pygame.sprite.Group(self.ground_items_group,self.brick_group,self.boxes_group)
         collided = pygame.sprite.spritecollideany(sprite,check_group)
         if not collided and sprite.state != 'jump' and not self.is_frozen():
             sprite.state = 'fall'
@@ -266,15 +272,18 @@ class level:
 
     def adjust_player_y(self,sprite):
 
-        #downwards
-        if self.player.rect.bottom < sprite.rect.bottom:
+        #向下
+        if self.player.rect.y < sprite.rect.y:
             self.player.y_velocity = 0
             self.player.rect.bottom = sprite.rect.top
             self.player.state = 'walk'
+        #向上顶到了
         else:
             self.player.y_velocity = 7
             self.player.rect.top = sprite.rect.bottom
             self.player.state = 'fall'
+
+            self.is_enemy_on(sprite)                 #是否上方有敌人
 
             if sprite.name == 'box':
                 if sprite.state == 'rest':
@@ -284,6 +293,19 @@ class level:
                     sprite.smashed(self.dying_group)
                 else:
                     sprite.go_bumped()
+
+    def is_enemy_on(self, sprite):
+        # 试探性地向上一个像素，并和敌人组进行碰撞检测
+        sprite.rect.y -= 1
+        enemy = pygame.sprite.spritecollideany(sprite, self.enemy_group)
+        if enemy:
+            self.enemy_group.remove(enemy)
+            self.dying_group.add(enemy)
+            if sprite.rect.centerx > enemy.rect.centerx:                                   #enemy被顶飞的方向
+                enemy.go_die('bumped',-1)
+            else:
+                enemy.go_die('bumped',1)
+        sprite.rect.y += 1
 
     def update_game_window(self):                                 #窗口跟随
 

@@ -6,7 +6,11 @@ from .. import constants as C
 
 def create_powerup(centerx,centery,type):
     """create powerup based on type and mario state"""
-    return Mushroom(centerx,centery)
+
+    if type ==3:
+        return Mushroom(centerx,centery)
+    elif type == 4:
+        return FireFlower(centerx,centery)
 class Powerup(pygame.sprite.Sprite):
     def __init__(self,centerx,centery,frame_rects):
         pygame.sprite.Sprite.__init__(self)
@@ -87,10 +91,103 @@ class Mushroom(Powerup):
         if self.state!='growup':
             self.update_position(level)
 
+class FireFlower(Powerup):
+    """ 火焰花类，可以让马里奥射出子弹 """
 
+    def __init__(self, centerx, centery):                                  #抄蘑菇的但是火焰花是闪烁的，增加帧变换效果
+        frame_rects = [(0, 32, 16, 16), (16, 32, 16, 16), (32, 32, 16, 16), (48, 32, 16, 16)]
+        Powerup.__init__(self, centerx, centery, frame_rects)
+        self.x_vel = 2
+        self.state = 'growup'
+        self.name = 'fireflower'
+        self.timer = 0
+
+    def update(self, level):
+        if self.state == 'growup':
+            self.rect.y += self.y_vel
+            if self.rect.bottom < self.origin_y:
+                self.state = 'rest'
+        self.current_time = pygame.time.get_ticks()
+        if self.timer == 0:
+            self.timer = self.current_time
+        if self.current_time - self.timer > 30:
+            self.frame_index +=1
+            self.frame_index %= len(self.frames)
+            self.timer = self.current_time
+            self.image = self.frames[self.frame_index]
 class Fireball(Powerup):
-    pass
+    def __init__(self,centerx,centery,direction):
+        #装载帧
+        frame_rects = [(96, 144, 8, 8), (104, 144, 8, 8), (96, 152, 8, 8), (104, 152, 8, 8),          #旋转
+                       (112, 144, 16, 16), (112, 160, 16, 16), (112, 176, 16, 16)]                    #爆炸
+        Powerup.__init__(self, centerx, centery, frame_rects)
+        self.name = 'fireball'
+        self.state = 'fly'
+        self.direction = direction
+        self.x_vel = 10 if self.direction else -10
+        self.y_vel = 10
+        self.gravity = 1
+        self.timer = 0
 
+    def update(self, level):
+        """
+        更新函数
+        :param level: 关卡对象
+        """
+        self.current_time = pygame.time.get_ticks()
+        if self.state == 'fly':
+            self.y_vel += self.gravity
+            if self.current_time - self.timer > 200:           #四帧流转
+                self.frame_index += 1
+                self.frame_index %= 4
+                self.image = self.frames[self.frame_index]
+                self.timer = self.current_time
+            self.update_position(level)
+        elif self.state == 'boom':
+            if self.current_time - self.timer > 50:                   #切换4 5 6 帧，切换完杀掉
+                if self.frame_index < 6:
+                    self.frame_index += 1
+                    self.timer = self.current_time
+                    self.image = self.frames[self.frame_index]
+                else:
+                    self.kill()
+
+    def update_position(self,level):
+        self.rect.x += self.x_vel
+        self.check_x_collisions(level)
+
+        self.rect.y += self.y_vel
+        #死亡后不做y方向的碰撞检测，方面淡出界面
+        self.check_y_collisions(level)
+
+        if self.rect.x < 0 or self.rect.y > C.SCREEN_H:
+            self.kill()
+
+    def check_x_collisions(self,level):                         #需要传入地图的精灵组，不同的地图有不同的敌人
+
+        enemy = pygame.sprite.spritecollideany(self,level.enemy_group)
+        if enemy:
+            self.frame_index = 4
+            self.state = 'boom'
+            self.x_vel = 0
+            enemy.go_die('bumped',self.direction)
+            level.enemy_group.remove(enemy)
+            level.dying_group.add(enemy)
+
+        sprite = pygame.sprite.spritecollideany(self,level.ground_items_group)
+        if sprite:
+            self.frame_index = 4
+            self.state = 'boom'
+
+
+    def check_y_collisions(self,level):
+        check_group = pygame.sprite.Group(level.ground_items_group,level.boxes_group,level.brick_group)
+        sprite = pygame.sprite.spritecollideany(self,check_group)
+        if sprite:
+            if self.rect.bottom > sprite.rect.top:
+                self.rect.bottom = sprite.rect.top
+                self.y_vel = -10
+        #不需要做是否掉落的假设判断，其速度变化自会实现
 class LifeMushroom(Powerup):
     pass
 

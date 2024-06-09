@@ -17,21 +17,21 @@ def create_enemy(enemy_data):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self,x,y_bottom,direction,name,frame_rects):
         pygame.sprite.Sprite.__init__(self)
-        self.direcion = direction
+        self.direction = direction
         self.name = name
         self.frame_index = 0
         self.left_frames = []
         self.right_frames = []
 
         self.load_frames(frame_rects)
-        self.frames = self.left_frames if self.direcion ==  0 else self.right_frames
+        self.frames = self.left_frames if self.direction ==  0 else self.right_frames
         self.image = self.frames[self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.bottom = y_bottom
 
         self.timer = 0
-        self.x_vel = -1 * C.ENEMY_SPEED if self.direcion == 0 else C.ENEMY_SPEED
+        self.x_vel = -1 * C.ENEMY_SPEED if self.direction == 0 else C.ENEMY_SPEED
         self.y_vel = 0
         self.gravity = C.GRAVITY
         self.state = 'walk'
@@ -46,11 +46,11 @@ class Enemy(pygame.sprite.Sprite):
     def update(self,level):
         self.current_time = pygame.time.get_ticks()
 
-        self.handle_states()
+        self.handle_states(level)
         self.update_position(level)
 
 
-    def handle_states(self):                          #状态机
+    def handle_states(self,level):                          #状态机
 
         #print(self.state)
         if self.state == 'walk':
@@ -60,11 +60,11 @@ class Enemy(pygame.sprite.Sprite):
         elif self.state == 'die':
             self.die()
         elif self.state == 'trampled':
-            self.trampled()
+            self.trampled(level)
         elif self.state == 'slide':
             self.slide()
 
-        if self.direcion:
+        if self.direction:
             self.image = self.right_frames[self.frame_index]
         else:
             self.image = self.left_frames[self.frame_index]
@@ -97,22 +97,24 @@ class Enemy(pygame.sprite.Sprite):
         if self.state != 'die' and self.state != 'trampled':                          #死亡后不做y方向的碰撞检测，方面淡出界面
             self.check_y_collisions(level)
 
-    def check_x_collisions(self,level):                         #需要传入地图的精灵组，不同的地图有不同的敌人
+    def check_x_collisions(self,level):
         sprite = pygame.sprite.spritecollideany(self,level.ground_items_group)
         if sprite:
-            #self.direcion = 1 if self.direcion == 0 else  0
-            if self.direcion:      #向右
-                self.direcion = 0
+            # if self.name == 'koopa':
+            #     print(sprite.name)
+            #     print(self.rect.left)
+            if self.direction:      #向右
+                self.direction = 0
                 self.rect.right = sprite.rect.left
             else:
-                self.direcion = 1
+                self.direction = 1
                 self.rect.left = sprite.rect.right
             self.x_vel *= -1
 
         if self.state == 'slide':
             enemy = pygame.sprite.spritecollideany(self,level.enemy_group)
             if enemy:
-                enemy.go_die(how = 'slided')
+                enemy.go_die(how = 'slided',direction = self.direction)
                 level.enemy_group.remove(enemy)
                 level.dying_group.add(enemy)
 
@@ -128,9 +130,10 @@ class Enemy(pygame.sprite.Sprite):
 
         level.check_will_fall(self)
 
-    def go_die(self,how):
+    def go_die(self,how,direction = 1):
         self.death_timer = self.current_time
         if how == 'bumped' or how == 'slided':
+            self.x_vel = C.ENEMY_SPEED * direction
             self.y_vel = -8
             self.gravity = 0.6
             self.state = 'die'
@@ -152,7 +155,7 @@ class Goomba(Enemy):
 
         Enemy.__init__(self,x,y_bottom,direction,name,frame_rects)
 
-    def trampled(self):                                               #换个皮肤，掐个表，到点消
+    def trampled(self,level):                                               #换个皮肤，掐个表，到点消
         #print("來了但meiosis")
         self.x_vel = 0
         self.frame_index = 2
@@ -173,12 +176,20 @@ class Koopa(Enemy):
             frame_rects = dark_frame_rects
 
         Enemy.__init__(self,x, y_bottom, direction, name, frame_rects)
+        self.shell_timer = 0
 
-    def trampled(self):                                               #换个皮肤，掐个表，到点消
+    def trampled(self,level):                                               #换个皮肤，掐个表，到点消
         self.x_vel = 0
         self.frame_index = 2
+                                                                        # 变成龟壳之后5秒钟不滑动会重新变成乌龟
+        if self.shell_timer == 0:
+            self.shell_timer = self.current_time
+        if self.current_time - self.shell_timer > 5000:
+            self.state = 'walk'
+            self.x_vel = - C.ENEMY_SPEED if self.direction == 0 else C.ENEMY_SPEED
+            level.enemy_group.add(self)
+            level.shell_group.remove(self)
+            self.shell_timer = 0
 
     def slide(self):
         pass
-
-#test
