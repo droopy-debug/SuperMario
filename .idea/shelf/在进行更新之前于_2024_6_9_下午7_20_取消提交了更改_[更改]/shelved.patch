@@ -1,0 +1,739 @@
+Index: source/state/level.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>#游戏关卡\r\nimport json\r\nimport os\r\n\r\nfrom .. import tools,setup\r\nfrom .. import constants as C\r\nfrom .. components import info,player,stuff,brick,box,enemy\r\nimport pygame\r\nclass level:\r\n    def start(self,game_info):\r\n        self.game_info = game_info\r\n        self.finished = False\r\n        self.next = 'game_over'\r\n        self.info = info.Info('level',self.game_info)\r\n        self.load_map_data()\r\n        self.setup_start_positions()\r\n\r\n        self.setup_background()\r\n        self.setup_player()\r\n        self.setup_ground_items()\r\n        self.setup_bricks_and_boxes()\r\n        self.setup_enemies()\r\n        self.setup_checkpoint()\r\n\r\n\r\n    def load_map_data(self):\r\n        file_name = 'level_1.json'\r\n        file_path = os.path.join('source/data/maps', file_name)\r\n        with open(file_path) as f:\r\n            self.map_data = json.load(f)\r\n\r\n    def setup_background(self):                                               #设置关卡背景\r\n        self.image_name = self.map_data['image_name']\r\n        self.background = setup.GRAPHICS[self.image_name]\r\n\r\n        # self.background = setup.GRAPHICS['level_1']\r\n        rect = self.background.get_rect()\r\n        self.background = pygame.transform.scale(self.background, (int(rect.width* C.BG_MULTI), int(rect.height * C.BG_MULTI)))\r\n\r\n        self.background_rect = self.background.get_rect()\r\n        self.game_window = setup.SCREEN.get_rect()\r\n\r\n        self.game_ground = pygame.Surface((self.background_rect.width,self.background_rect.height))               #新图层\r\n\r\n    def setup_start_positions(self):                               #开始位置\r\n        self.posisions = []\r\n        for data in self.map_data['maps']:\r\n            self.posisions.append((data['start_x'],data['end_x'],data['player_x'],data['player_y']))\r\n        self.start_x,self.end_x,self.player_x,self.player_y = self.posisions[0]\r\n\r\n    def setup_player(self):\r\n        self.player = player.player('mario')\r\n        self.player.rect.x = self.game_window.x + self.player_x\r\n        self.player.rect.bottom = self.player_y                            #底部\r\n\r\n\r\n    def setup_ground_items(self):\r\n        self.ground_items_group = pygame.sprite.Group()           #精灵组  可以存放多个精灵\r\n        for name in ['ground' , 'pipe' , 'step']:                                #将json文件里存的方块、水管以及地图边界（包括深坑）导入精灵组\r\n            for item in self.map_data[name]:\r\n                self.ground_items_group.add(stuff.Item(item['x'],item['y'],item['width'],item['height'],name))\r\n\r\n    def setup_bricks_and_boxes(self):\r\n        self.brick_group = pygame.sprite.Group()\r\n        self.boxes_group = pygame.sprite.Group()\r\n        self.coin_group = pygame.sprite.Group()\r\n        self.powerup_group = pygame.sprite.Group()\r\n\r\n        if 'brick' in self.map_data:                         #如果砖块在地图的json文件里\r\n            for brick_data in self.map_data['brick']:\r\n                x , y = brick_data['x'] , brick_data['y']\r\n                brick_type = brick_data['type']\r\n                if brick_type == 0:\r\n                    if 'brick_num' in brick_data:  # 如果有brick_num，则是批量处理\r\n                        # TODO batch brick\r\n                        pass\r\n                    else:\r\n                        self.brick_group.add(brick.Brick(x, y, brick_type,None));\r\n                elif brick_type == 1:\r\n                    self.brick_group.add(brick.Brick(x,y,brick_type,self.coin_group))\r\n                else:\r\n                    self.brick_group.add(brick.Brick(x, y, brick_type, self.powerup_group))\r\n\r\n\r\n\r\n        if 'box' in self.map_data:  # 如果砖块在地图的json文件里\r\n            for box_data in self.map_data['box']:\r\n                x, y = box_data['x'], box_data['y']\r\n                box_type = box_data['type']\r\n                if box_type == 1:\r\n                    self.boxes_group.add(box.Box(x,y,box_type,self.coin_group))\r\n                else:\r\n                    self.boxes_group.add(box.Box(x,y,box_type,self.powerup_group))                     #将装东西的篮子一起传进去\r\n\r\n    def setup_enemies(self):\r\n        self.dying_group = pygame.sprite.Group()\r\n        self.enemy_group = pygame.sprite.Group()\r\n        self.shell_group = pygame.sprite.Group()\r\n        self.enemy_group_dict = {}                                        #按组数将每组敌人存入\r\n        for enemy_group_data in self.map_data['enemy']:\r\n            group = pygame.sprite.Group()\r\n            for enemy_group_id, enemy_list in enemy_group_data.items():\r\n                for enemy_data in enemy_list:\r\n                    group.add(enemy.create_enemy(enemy_data))\r\n                self.enemy_group_dict[enemy_group_id] = group\r\n                #group.empty()\r\n\r\n    def setup_checkpoint(self):\r\n        self.checkpoint_group = pygame.sprite.Group()\r\n        for item in self.map_data['checkpoint']:\r\n            x,y,w,h = item['x'],item['y'],item['width'],item['height']\r\n            checkpoint_type = item['type']\r\n            enemy_groupid = item.get('enemy_groupid')\r\n            self.checkpoint_group.add(stuff.Checkpoint(x,y,w,h,checkpoint_type,enemy_groupid))\r\n\r\n\r\n    def update(self, surface ,keys):\r\n\r\n        self.current_time = pygame.time.get_ticks()\r\n        self.player.update(keys)\r\n\r\n        if self.player.dead:\r\n            if self.current_time - self.player.death_timer > 3000:\r\n                self.finished = True\r\n                self.update_game_info()\r\n        elif self.is_frozen():\r\n            pass\r\n        else:\r\n            self.update_player_posision()\r\n            self.check_checkpoint()\r\n            self.check_if_go_die()\r\n            self.update_game_window()\r\n            self.info.update()\r\n            self.brick_group.update()\r\n            self.boxes_group.update()\r\n\r\n            self.enemy_group.update(self)\r\n            self.dying_group.update(self)\r\n            self.shell_group.update(self)\r\n            self.coin_group.update()\r\n            self.powerup_group.update(self)\r\n\r\n        self.draw(surface)\r\n\r\n    def is_frozen(self):                            #在形态改变时冻结地图\r\n        return self.player.state in ['small2big','big2small','big2fire','fire2samll']\r\n    def update_player_posision(self):                     #mario移动\r\n\r\n        #x方向\r\n        self.player.rect.x += self.player.x_velocity\r\n        if self.player.rect.x < self.start_x:\r\n            self.player.rect.x = self.start_x\r\n        elif self.player.rect.x > self.end_x:\r\n            self.player.rect.x = self.end_x\r\n        self.check_x_collisions()\r\n\r\n        #y方向\r\n        if not self.player.dead:\r\n            self.player.rect.y += self.player.y_velocity\r\n            self.check_y_collisions()\r\n\r\n    def check_x_collisions(self):\r\n        check_group = pygame.sprite.Group(self.ground_items_group,self.brick_group,self.boxes_group)\r\n        collided_sprite = pygame.sprite.spritecollideany(self.player, check_group)       #检查一个精灵是否与精灵组里的任意一个精灵有碰撞||返回第一个与mario碰撞的精灵\r\n        if collided_sprite:\r\n            self.adjust_player_x(collided_sprite)\r\n\r\n        if self.player.hurt_immune:\r\n            return\r\n\r\n        enemy = pygame.sprite.spritecollideany(self.player, self.enemy_group)\r\n        if enemy:\r\n\r\n            if self.player.big:\r\n                # 变大的马里奥撞到敌人会变小\r\n                self.player.state = 'big2small'\r\n                print(self.player.state)\r\n                self.player.hurt_immune = True  # 由大变小的时候有一段时间的伤害免疫\r\n                print(self.player.hurt_immune)\r\n            else:\r\n                # 小马里奥撞到敌人会直接狗带\r\n                self.player.go_die()\r\n\r\n        shell = pygame.sprite.spritecollideany(self.player,self.shell_group)\r\n        if shell:\r\n            #print(shell.state)\r\n            if shell.state == 'slide':\r\n                self.player.go_die()\r\n            else:\r\n                if self.player.rect.x < shell.rect.x:\r\n                    shell.x_vel = 10\r\n                    shell.rect.x += 40\r\n                    shell.direction = 1\r\n                else:\r\n                    shell.x_vel = -10\r\n                    shell.rect.x -= 40\r\n                    shell.direction = 0\r\n                shell.state = 'slide'\r\n\r\n\r\n\r\n    def check_y_collisions(self):\r\n\r\n        ground_item = pygame.sprite.spritecollideany(self.player,self.ground_items_group)\r\n        brick = pygame.sprite.spritecollideany(self.player, self.brick_group)\r\n        box = pygame.sprite.spritecollideany(self.player, self.boxes_group)\r\n        enemy = pygame.sprite.spritecollideany(self.player, self.enemy_group)\r\n\r\n        if brick and box:\r\n            to_brick = abs(self.player.rect.centerx - brick.rect.centerx)\r\n            to_box = abs(self.player.rect.centerx - box.rect.centerx)\r\n            if to_brick > to_box:\r\n                brick = None\r\n            else:\r\n                box = None\r\n\r\n        if ground_item:\r\n            self.adjust_player_y(ground_item)\r\n        elif brick:\r\n            self.adjust_player_y(brick)\r\n        elif box:\r\n            self.adjust_player_y(box)\r\n        elif enemy:\r\n            if self.player.hurt_immune:\r\n                return\r\n            self.enemy_group.remove(enemy)\r\n            if enemy.name == 'koopa':\r\n                self.shell_group.add(enemy)\r\n            else:\r\n                self.dying_group.add(enemy)\r\n            if self.player.y_velocity < 0:            #从下往上顶\r\n                how = 'bumped'\r\n                enemy.go_die(how)\r\n            elif self.player.y_velocity > 0:                                    #从上往下，踩死\r\n                how = 'trampled'\r\n                self.player.state = 'jump'\r\n                self.player.rect.bottom = enemy.rect.top\r\n                self.player.y_velocity = self.player.jump_vel * 0.8            #一个小跳\r\n                enemy.go_die(how)\r\n            #print(\"猜到了\")\r\n\r\n        powerup = pygame.sprite.spritecollideany(self.player,self.powerup_group)\r\n        if powerup:\r\n            powerup.kill()\r\n            if powerup.name == 'mushroom':\r\n                self.player.state = 'small2big'\r\n        self.check_will_fall(self.player)\r\n        #print(self.player.state)\r\n\r\n\r\n    def check_will_fall(self,sprite):\r\n        sprite.rect.y += 1                                                   #试探性下落一个像素，如果没有碰撞则修改状态为下落\r\n        check_group = pygame.sprite.Group(self.ground_items_group,self.brick_group)\r\n        collided = pygame.sprite.spritecollideany(sprite,check_group)\r\n        if not collided and sprite.state != 'jump' and not self.is_frozen():\r\n            sprite.state = 'fall'\r\n        sprite.rect.y -= 1                                                  #还原\r\n\r\n\r\n    def adjust_player_x(self,sprite):\r\n        if self.player.rect.x < sprite.rect.x:\r\n            self.player.rect.right = sprite.rect.left\r\n        else:\r\n            self.player.rect.left = sprite.rect.right\r\n        self.player.x_velocity = 0\r\n\r\n    def adjust_player_y(self,sprite):\r\n\r\n        #downwards\r\n        if self.player.rect.bottom < sprite.rect.bottom:\r\n            self.player.y_velocity = 0\r\n            self.player.rect.bottom = sprite.rect.top\r\n            self.player.state = 'walk'\r\n        else:\r\n            self.player.y_velocity = 7\r\n            self.player.rect.top = sprite.rect.bottom\r\n            self.player.state = 'fall'\r\n\r\n            if sprite.name == 'box':\r\n                if sprite.state == 'rest':\r\n                    sprite.go_bumped()\r\n            if sprite.name == 'brick':\r\n                if self.player.big and sprite.brick_type == 0:                #mario处于变大状态并且砖块里面没东西\r\n                    sprite.smashed(self.dying_group)\r\n                else:\r\n                    sprite.go_bumped()\r\n\r\n    def update_game_window(self):                                 #窗口跟随\r\n\r\n        third = self.game_window.x + self.game_window.width / 3            #计算窗口的1/3位置\r\n        if self.player.x_velocity > 0 and self.player.rect.centerx > third and self.game_window.right< self.end_x:\r\n            self.start_x = self.game_window.x                              #不能走回头路\r\n            self.game_window.x += self.player.x_velocity\r\n\r\n\r\n\r\n\r\n    def draw(self, surface):\r\n        #surface.fill((0,255,0))\r\n        #surface.blit(self.background, (0,0),self.game_window)             #将game_window所在位置画到屏幕上\r\n        self.game_ground.blit(self.background,self.game_window,self.game_window)\r\n        self.game_ground.blit(self.player.image,self.player.rect)\r\n        self.powerup_group.draw(self.game_ground)\r\n        self.brick_group.draw(self.game_ground)\r\n        self.boxes_group.draw(self.game_ground)\r\n\r\n        self.enemy_group.draw(self.game_ground)\r\n        self.dying_group.draw(self.game_ground)\r\n        self.shell_group.draw(self.game_ground)\r\n        self.coin_group.draw(self.game_ground)\r\n\r\n\r\n        surface.blit(self.game_ground,(0,0),self.game_window)\r\n        #surface.blit(self.brick.image)\r\n        self.info.draw(surface)\r\n        # surface.blit(self.player.image,self.player.rect)\r\n\r\n    def check_checkpoint(self):\r\n        checkpoint = pygame.sprite.spritecollideany(self.player,self.checkpoint_group)               #检查点被mario碰到\r\n        if checkpoint:\r\n            if checkpoint.checkpoint_type == 0 :\r\n                self.enemy_group.add(self.enemy_group_dict[str(checkpoint.enemy_groupid)])\r\n            checkpoint.kill()\r\n\r\n    def check_if_go_die(self):\r\n        if self.player.rect.y > C.SCREEN_H:                        #下落到边界以外，触发死亡\r\n            self.player.go_die()\r\n\r\n\r\n    def update_game_info(self):                         #死亡后更新数据\r\n        if self.player.dead:\r\n            self.game_info['lives'] -= 1\r\n        if self.game_info['lives'] == 0:                          #死亡后选择结束还是重生\r\n            self.next = 'game_over'\r\n        else:\r\n            self.next = 'load_screen'\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/source/state/level.py b/source/state/level.py
+--- a/source/state/level.py	(revision 0e20a88045cea73ac339fc5ed99b13dc5a1aaa33)
++++ b/source/state/level.py	(date 1717930359421)
+@@ -117,7 +117,7 @@
+     def update(self, surface ,keys):
+ 
+         self.current_time = pygame.time.get_ticks()
+-        self.player.update(keys)
++        self.player.update(keys,self)
+ 
+         if self.player.dead:
+             if self.current_time - self.player.death_timer > 3000:
+@@ -174,9 +174,7 @@
+             if self.player.big:
+                 # 变大的马里奥撞到敌人会变小
+                 self.player.state = 'big2small'
+-                print(self.player.state)
+                 self.player.hurt_immune = True  # 由大变小的时候有一段时间的伤害免疫
+-                print(self.player.hurt_immune)
+             else:
+                 # 小马里奥撞到敌人会直接狗带
+                 self.player.go_die()
+@@ -185,7 +183,13 @@
+         if shell:
+             #print(shell.state)
+             if shell.state == 'slide':
+-                self.player.go_die()
++                if self.player.big:
++                    # 变大的马里奥撞到敌人会变小
++                    self.player.state = 'big2small'
++                    self.player.hurt_immune = True  # 由大变小的时候有一段时间的伤害免疫
++                else:
++                    # 小马里奥撞到敌人会直接die
++                    self.player.go_die()
+             else:
+                 if self.player.rect.x < shell.rect.x:
+                     shell.x_vel = 10
+@@ -196,7 +200,19 @@
+                     shell.rect.x -= 40
+                     shell.direction = 0
+                 shell.state = 'slide'
+-
++        powerup = pygame.sprite.spritecollideany(self.player,self.powerup_group)
++        if powerup:
++            if powerup.name == 'mushroom':
++                # 蘑菇让玩家变大
++                self.player.state = 'small2big'
++                powerup.kill()
++            elif powerup.name == 'fireball':
++                pass
++            elif powerup.name == 'fireflower':
++                print("222")
++                # 火焰花让玩家能够发射子弹
++                self.player.state = 'big2fire'
++                powerup.kill()
+ 
+ 
+     def check_y_collisions(self):
+@@ -230,27 +246,22 @@
+                 self.dying_group.add(enemy)
+             if self.player.y_velocity < 0:            #从下往上顶
+                 how = 'bumped'
+-                enemy.go_die(how)
++                enemy.go_die(how, 1 if self.player.face_right else -1)
+             elif self.player.y_velocity > 0:                                    #从上往下，踩死
+                 how = 'trampled'
+                 self.player.state = 'jump'
+                 self.player.rect.bottom = enemy.rect.top
+                 self.player.y_velocity = self.player.jump_vel * 0.8            #一个小跳
+-                enemy.go_die(how)
++                enemy.go_die(how,1 if self.player.face_right else -1)
+             #print("猜到了")
+ 
+-        powerup = pygame.sprite.spritecollideany(self.player,self.powerup_group)
+-        if powerup:
+-            powerup.kill()
+-            if powerup.name == 'mushroom':
+-                self.player.state = 'small2big'
+         self.check_will_fall(self.player)
+         #print(self.player.state)
+ 
+ 
+     def check_will_fall(self,sprite):
+         sprite.rect.y += 1                                                   #试探性下落一个像素，如果没有碰撞则修改状态为下落
+-        check_group = pygame.sprite.Group(self.ground_items_group,self.brick_group)
++        check_group = pygame.sprite.Group(self.ground_items_group,self.brick_group,self.boxes_group)
+         collided = pygame.sprite.spritecollideany(sprite,check_group)
+         if not collided and sprite.state != 'jump' and not self.is_frozen():
+             sprite.state = 'fall'
+@@ -266,16 +277,19 @@
+ 
+     def adjust_player_y(self,sprite):
+ 
+-        #downwards
+-        if self.player.rect.bottom < sprite.rect.bottom:
++        #向下
++        if self.player.rect.y < sprite.rect.y:
+             self.player.y_velocity = 0
+             self.player.rect.bottom = sprite.rect.top
+             self.player.state = 'walk'
++        #向上顶到了
+         else:
+             self.player.y_velocity = 7
+             self.player.rect.top = sprite.rect.bottom
+             self.player.state = 'fall'
+ 
++            self.is_enemy_on(sprite)                 #是否上方有敌人
++
+             if sprite.name == 'box':
+                 if sprite.state == 'rest':
+                     sprite.go_bumped()
+@@ -285,6 +299,19 @@
+                 else:
+                     sprite.go_bumped()
+ 
++    def is_enemy_on(self, sprite):
++        # 试探性地向上一个像素，并和敌人组进行碰撞检测
++        sprite.rect.y -= 1
++        enemy = pygame.sprite.spritecollideany(sprite, self.enemy_group)
++        if enemy:
++            self.enemy_group.remove(enemy)
++            self.dying_group.add(enemy)
++            if sprite.rect.centerx > enemy.rect.centerx:                                   #enemy被顶飞的方向
++                enemy.go_die('bumped',-1)
++            else:
++                enemy.go_die('bumped',1)
++        sprite.rect.y += 1
++
+     def update_game_window(self):                                 #窗口跟随
+ 
+         third = self.game_window.x + self.game_window.width / 3            #计算窗口的1/3位置
+Index: source/constants.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>#存放游戏常量\r\n\r\nSCREEN_W,SCREEN_H = 800,600\r\nSCREEN_SIZE = (SCREEN_W,SCREEN_H)\r\nGROUND_HEIGHT = SCREEN_H - 62\r\n\r\nGRAVITY = 1.0\r\nANTI_GRAVITY = 0.3\r\n\r\nBG_MULTI = 2.68\r\nPLAYER_MULTI = 2.9\r\nBRICK_MULTI = 2.69\r\nENEMY_MULTI = 2.5\r\nENEMY_SPEED = 1\r\n\r\nFONT = 'Arial.ttf'
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/source/constants.py b/source/constants.py
+--- a/source/constants.py	(revision 0e20a88045cea73ac339fc5ed99b13dc5a1aaa33)
++++ b/source/constants.py	(date 1717929686244)
+@@ -8,9 +8,9 @@
+ ANTI_GRAVITY = 0.3
+ 
+ BG_MULTI = 2.68
+-PLAYER_MULTI = 2.9
++PLAYER_MULTI = 2.5
+ BRICK_MULTI = 2.69
+-ENEMY_MULTI = 2.5
++ENEMY_MULTI = 2.2
+ ENEMY_SPEED = 1
+ 
+ FONT = 'Arial.ttf'
+\ No newline at end of file
+Index: source/components/powerup.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>#强化\r\n\r\nimport pygame\r\nfrom .. import setup ,tools\r\nfrom .. import constants as C\r\n\r\ndef create_powerup(centerx,centery,type):\r\n    \"\"\"create powerup based on type and mario state\"\"\"\r\n    return Mushroom(centerx,centery)\r\nclass Powerup(pygame.sprite.Sprite):\r\n    def __init__(self,centerx,centery,frame_rects):\r\n        pygame.sprite.Sprite.__init__(self)\r\n\r\n        #装载帧造型\r\n        self.frames = []\r\n        self.frame_index = 0\r\n        for frame_rect in frame_rects:\r\n            self.frames.append(tools.get_image(setup.GRAPHICS['item_objects'],*frame_rect,(0,0,0),2.5))\r\n        self.image = self.frames[self.frame_index]\r\n        self.rect = self.image.get_rect()\r\n        self.rect.centerx = centerx\r\n        self.rect.centery = centery\r\n        self.origin_y = centery - self.rect.height/2\r\n\r\n        self.x_vel = 0\r\n        self.direcion = 1 #右边\r\n        self.y_vel = -1\r\n        self.gravity = 1\r\n        self.max_y_vel = 8\r\n\r\n\r\n\r\n\r\n    def update_position(self,level):\r\n        self.rect.x += self.x_vel\r\n        self.check_x_collisions(level)\r\n\r\n        self.rect.y += self.y_vel\r\n        #死亡后不做y方向的碰撞检测，方面淡出界面\r\n        self.check_y_collisions(level)\r\n\r\n        if self.rect.x < 0 or self.rect.y > C.SCREEN_H:\r\n            self.kill()\r\n\r\n    def check_x_collisions(self,level):                         #需要传入地图的精灵组，不同的地图有不同的敌人\r\n        sprite = pygame.sprite.spritecollideany(self,level.ground_items_group)\r\n        if sprite:\r\n            #self.direcion = 1 if self.direcion == 0 else  0\r\n            if self.direcion:      #向右\r\n                self.direcion = 0\r\n                self.rect.right = sprite.rect.left\r\n            else:\r\n                self.direcion = 1\r\n                self.rect.left = sprite.rect.right\r\n            self.x_vel *= -1\r\n\r\n\r\n    def check_y_collisions(self,level):\r\n        check_group = pygame.sprite.Group(level.ground_items_group,level.boxes_group,level.brick_group)\r\n        sprite = pygame.sprite.spritecollideany(self,check_group)\r\n        if sprite:\r\n            if self.rect.top < sprite.rect.top:\r\n                self.rect.bottom = sprite.rect.top\r\n                self.y_vel = 0\r\n                self.state = 'walk'\r\n\r\n        level.check_will_fall(self)\r\n\r\nclass Mushroom(Powerup):\r\n    def __init__(self,centerx,centery):\r\n        Powerup.__init__(self,centerx,centery,[(0,0,16,16)])\r\n        self.x_vel = 2\r\n        self.state = 'growup'\r\n        self.name = 'mushroom'\r\n\r\n    def update(self,level):\r\n        #print(self.state)\r\n        if self.state == 'growup':\r\n            self.rect.y += self.y_vel\r\n            if self.rect.bottom < self.origin_y:\r\n                self.state = 'walk'\r\n        elif self.state == 'walk':\r\n            pass\r\n        elif self.state == 'fall':\r\n            if self.y_vel < self.max_y_vel:\r\n               self.y_vel += self.gravity\r\n        if self.state!='growup':\r\n            self.update_position(level)\r\n\r\n\r\nclass Fireball(Powerup):\r\n    pass\r\n\r\nclass LifeMushroom(Powerup):\r\n    pass\r\n\r\nclass Star(Powerup):\r\n    pass
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/source/components/powerup.py b/source/components/powerup.py
+--- a/source/components/powerup.py	(revision 0e20a88045cea73ac339fc5ed99b13dc5a1aaa33)
++++ b/source/components/powerup.py	(date 1717931900313)
+@@ -6,7 +6,11 @@
+ 
+ def create_powerup(centerx,centery,type):
+     """create powerup based on type and mario state"""
+-    return Mushroom(centerx,centery)
++
++    if type ==3:
++        return Mushroom(centerx,centery)
++    elif type == 4:
++        return FireFlower(centerx,centery)
+ class Powerup(pygame.sprite.Sprite):
+     def __init__(self,centerx,centery,frame_rects):
+         pygame.sprite.Sprite.__init__(self)
+@@ -46,11 +50,11 @@
+         sprite = pygame.sprite.spritecollideany(self,level.ground_items_group)
+         if sprite:
+             #self.direcion = 1 if self.direcion == 0 else  0
+-            if self.direcion:      #向右
+-                self.direcion = 0
++            if self.direction:      #向右
++                self.direction = 0
+                 self.rect.right = sprite.rect.left
+             else:
+-                self.direcion = 1
++                self.direction = 1
+                 self.rect.left = sprite.rect.right
+             self.x_vel *= -1
+ 
+@@ -87,10 +91,103 @@
+         if self.state!='growup':
+             self.update_position(level)
+ 
++class FireFlower(Powerup):
++    """ 火焰花类，可以让马里奥射出子弹 """
+ 
++    def __init__(self, centerx, centery):                                  #抄蘑菇的但是火焰花是闪烁的，增加帧变换效果
++        frame_rects = [(0, 32, 16, 16), (16, 32, 16, 16), (32, 32, 16, 16), (48, 32, 16, 16)]
++        Powerup.__init__(self, centerx, centery, frame_rects)
++        self.x_vel = 2
++        self.state = 'growup'
++        self.name = 'fireflower'
++        self.timer = 0
++
++    def update(self, level):
++        if self.state == 'growup':
++            self.rect.y += self.y_vel
++            if self.rect.bottom < self.origin_y:
++                self.state = 'rest'
++        self.current_time = pygame.time.get_ticks()
++        if self.timer == 0:
++            self.timer = self.current_time
++        if self.current_time - self.timer > 30:
++            self.frame_index +=1
++            self.frame_index %= len(self.frames)
++            self.timer = self.current_time
++            self.image = self.frames[self.frame_index]
+ class Fireball(Powerup):
+-    pass
++    def __init__(self,centerx,centery,direction):
++        #装载帧
++        frame_rects = [(96, 144, 8, 8), (104, 144, 8, 8), (96, 152, 8, 8), (104, 152, 8, 8),          #旋转
++                       (112, 144, 16, 16), (112, 160, 16, 16), (112, 176, 16, 16)]                    #爆炸
++        Powerup.__init__(self, centerx, centery, frame_rects)
++        self.name = 'fireball'
++        self.state = 'fly'
++        self.direction = direction
++        self.x_vel = 10 if self.direction else -10
++        self.y_vel = 10
++        self.gravity = 1
++        self.timer = 0
++
++    def update(self, level):
++        """
++        更新函数
++        :param level: 关卡对象
++        """
++        self.current_time = pygame.time.get_ticks()
++        if self.state == 'fly':
++            self.y_vel += self.gravity
++            if self.current_time - self.timer > 200:           #四帧流转
++                self.frame_index += 1
++                self.frame_index %= 4
++                self.image = self.frames[self.frame_index]
++                self.timer = self.current_time
++            self.update_position(level)
++        elif self.state == 'boom':
++            if self.current_time - self.timer > 50:                   #切换4 5 6 帧，切换完杀掉
++                if self.frame_index < 6:
++                    self.frame_index += 1
++                    self.timer = self.current_time
++                    self.image = self.frames[self.frame_index]
++                else:
++                    self.kill()
++
++    def update_position(self,level):
++        self.rect.x += self.x_vel
++        self.check_x_collisions(level)
++
++        self.rect.y += self.y_vel
++        #死亡后不做y方向的碰撞检测，方面淡出界面
++        self.check_y_collisions(level)
++
++        if self.rect.x < 0 or self.rect.y > C.SCREEN_H:
++            self.kill()
++
++    def check_x_collisions(self,level):                         #需要传入地图的精灵组，不同的地图有不同的敌人
++
++        enemy = pygame.sprite.spritecollideany(self,level.enemy_group)
++        if enemy:
++            self.frame_index = 4
++            self.state = 'boom'
++            self.x_vel = 0
++            enemy.go_die('bumped',self.direction)
++            level.enemy_group.remove(enemy)
++            level.dying_group.add(enemy)
++
++        sprite = pygame.sprite.spritecollideany(self,level.ground_items_group)
++        if sprite:
++            self.frame_index = 4
++            self.state = 'boom'
+ 
++
++    def check_y_collisions(self,level):
++        check_group = pygame.sprite.Group(level.ground_items_group,level.boxes_group,level.brick_group)
++        sprite = pygame.sprite.spritecollideany(self,check_group)
++        if sprite:
++            if self.rect.bottom > sprite.rect.top:
++                self.rect.bottom = sprite.rect.top
++                self.y_vel = -10
++        #不需要做是否掉落的假设判断，其速度变化自会实现
+ class LifeMushroom(Powerup):
+     pass
+ 
+Index: source/components/enemy.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>#敌人\r\nimport pygame\r\nfrom .. import setup,tools\r\nfrom .. import constants as C\r\n\r\ndef create_enemy(enemy_data):\r\n    enemy_type = enemy_data['type']\r\n    x ,y_bottom ,direction ,color = enemy_data['x'],enemy_data['y'],enemy_data['direction'],enemy_data['color']\r\n\r\n    if enemy_type == 0:\r\n        enemy = Goomba(x ,y_bottom,direction ,\"goomba\",color)\r\n    elif enemy_type == 1:\r\n        enemy = Koopa(x ,y_bottom,direction ,\"koopa\",color)\r\n\r\n    return enemy\r\n\r\nclass Enemy(pygame.sprite.Sprite):\r\n    def __init__(self,x,y_bottom,direction,name,frame_rects):\r\n        pygame.sprite.Sprite.__init__(self)\r\n        self.direcion = direction\r\n        self.name = name\r\n        self.frame_index = 0\r\n        self.left_frames = []\r\n        self.right_frames = []\r\n\r\n        self.load_frames(frame_rects)\r\n        self.frames = self.left_frames if self.direcion ==  0 else self.right_frames\r\n        self.image = self.frames[self.frame_index]\r\n        self.rect = self.image.get_rect()\r\n        self.rect.x = x\r\n        self.rect.bottom = y_bottom\r\n\r\n        self.timer = 0\r\n        self.x_vel = -1 * C.ENEMY_SPEED if self.direcion == 0 else C.ENEMY_SPEED\r\n        self.y_vel = 0\r\n        self.gravity = C.GRAVITY\r\n        self.state = 'walk'\r\n\r\n    def load_frames(self,frames_rects):\r\n        for frames_rect in frames_rects:\r\n            left_frames = tools.get_image(setup.GRAPHICS['enemies'],*frames_rect,(0,0,0),C.ENEMY_MULTI)\r\n            right_frames = pygame.transform.flip(left_frames,True,False)\r\n            self.left_frames.append(left_frames)\r\n            self.right_frames.append(right_frames)\r\n\r\n    def update(self,level):\r\n        self.current_time = pygame.time.get_ticks()\r\n\r\n        self.handle_states()\r\n        self.update_position(level)\r\n\r\n\r\n    def handle_states(self):                          #状态机\r\n\r\n        #print(self.state)\r\n        if self.state == 'walk':\r\n            self.walk()\r\n        elif self.state == 'fall' :\r\n            self.fall()\r\n        elif self.state == 'die':\r\n            self.die()\r\n        elif self.state == 'trampled':\r\n            self.trampled()\r\n        elif self.state == 'slide':\r\n            self.slide()\r\n\r\n        if self.direcion:\r\n            self.image = self.right_frames[self.frame_index]\r\n        else:\r\n            self.image = self.left_frames[self.frame_index]\r\n\r\n    def walk(self):\r\n        if self.current_time - self.timer > 125:\r\n            self.frame_index = (self.frame_index + 1) % 2\r\n            self.timer = self.current_time\r\n            self.image = self.frames[self.frame_index]\r\n\r\n    def fall(self):\r\n        if self.y_vel < 10:\r\n            self.y_vel += self.gravity\r\n\r\n    def die(self):\r\n        self.rect.x += self.x_vel\r\n        self.rect.y += self.y_vel\r\n        self.y_vel += self.gravity\r\n        if self.rect.y > C.SCREEN_H:\r\n            self.kill()\r\n\r\n    def trampled(self):\r\n        pass\r\n\r\n    def update_position(self,level):\r\n        self.rect.x += self.x_vel\r\n        self.check_x_collisions(level)\r\n\r\n        self.rect.y += self.y_vel\r\n        if self.state != 'die' and self.state != 'trampled':                          #死亡后不做y方向的碰撞检测，方面淡出界面\r\n            self.check_y_collisions(level)\r\n\r\n    def check_x_collisions(self,level):                         #需要传入地图的精灵组，不同的地图有不同的敌人\r\n        sprite = pygame.sprite.spritecollideany(self,level.ground_items_group)\r\n        if sprite:\r\n            #self.direcion = 1 if self.direcion == 0 else  0\r\n            if self.direcion:      #向右\r\n                self.direcion = 0\r\n                self.rect.right = sprite.rect.left\r\n            else:\r\n                self.direcion = 1\r\n                self.rect.left = sprite.rect.right\r\n            self.x_vel *= -1\r\n\r\n        if self.state == 'slide':\r\n            enemy = pygame.sprite.spritecollideany(self,level.enemy_group)\r\n            if enemy:\r\n                enemy.go_die(how = 'slided')\r\n                level.enemy_group.remove(enemy)\r\n                level.dying_group.add(enemy)\r\n\r\n\r\n    def check_y_collisions(self,level):\r\n        check_group = pygame.sprite.Group(level.ground_items_group,level.boxes_group,level.brick_group)\r\n        sprite = pygame.sprite.spritecollideany(self,check_group)\r\n        if sprite:\r\n            if self.rect.top < sprite.rect.top:\r\n                self.rect.bottom = sprite.rect.top\r\n                self.y_vel = 0\r\n                self.state = 'walk'\r\n\r\n        level.check_will_fall(self)\r\n\r\n    def go_die(self,how):\r\n        self.death_timer = self.current_time\r\n        if how == 'bumped' or how == 'slided':\r\n            self.y_vel = -8\r\n            self.gravity = 0.6\r\n            self.state = 'die'\r\n            self.frame_index = 2\r\n        elif how == 'trampled':\r\n            self.state = 'trampled'\r\n\r\n\r\n\r\nclass Goomba(Enemy):\r\n    def __init__(self,x,y_bottom,direction,name,color):\r\n        bright_frame_rects = [(0,16,16,16),(16,16,16,16),(32,16,16,16)]\r\n        dark_frame_rects = [(0,48,16,16),(16,48,16,16),(32,48,16,16)]\r\n\r\n        if not color:\r\n            frame_rects = bright_frame_rects\r\n        else:\r\n            frame_rects = dark_frame_rects\r\n\r\n        Enemy.__init__(self,x,y_bottom,direction,name,frame_rects)\r\n\r\n    def trampled(self):                                               #换个皮肤，掐个表，到点消\r\n        #print(\"來了但meiosis\")\r\n        self.x_vel = 0\r\n        self.frame_index = 2\r\n        #print(self.death_timer)\r\n        if self.death_timer == 0:\r\n            self.death_timer = self.current_time\r\n        if self.current_time - self.death_timer > 500:\r\n            self.kill()\r\n\r\nclass Koopa(Enemy):\r\n    def __init__(self, x, y_bottom, direction, name, color):\r\n        bright_frame_rects = [(96, 9, 16, 22), (112, 9, 16, 22), (160, 9, 16, 22)]\r\n        dark_frame_rects = [(96,72,16,22), (112,72,16,22), (160,72,16,22)]\r\n\r\n        if not color:\r\n            frame_rects = bright_frame_rects\r\n        else:\r\n            frame_rects = dark_frame_rects\r\n\r\n        Enemy.__init__(self,x, y_bottom, direction, name, frame_rects)\r\n\r\n    def trampled(self):                                               #换个皮肤，掐个表，到点消\r\n        self.x_vel = 0\r\n        self.frame_index = 2\r\n\r\n    def slide(self):\r\n        pass\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/source/components/enemy.py b/source/components/enemy.py
+--- a/source/components/enemy.py	(revision 0e20a88045cea73ac339fc5ed99b13dc5a1aaa33)
++++ b/source/components/enemy.py	(date 1717932025834)
+@@ -17,21 +17,21 @@
+ class Enemy(pygame.sprite.Sprite):
+     def __init__(self,x,y_bottom,direction,name,frame_rects):
+         pygame.sprite.Sprite.__init__(self)
+-        self.direcion = direction
++        self.direction = direction
+         self.name = name
+         self.frame_index = 0
+         self.left_frames = []
+         self.right_frames = []
+ 
+         self.load_frames(frame_rects)
+-        self.frames = self.left_frames if self.direcion ==  0 else self.right_frames
++        self.frames = self.left_frames if self.direction ==  0 else self.right_frames
+         self.image = self.frames[self.frame_index]
+         self.rect = self.image.get_rect()
+         self.rect.x = x
+         self.rect.bottom = y_bottom
+ 
+         self.timer = 0
+-        self.x_vel = -1 * C.ENEMY_SPEED if self.direcion == 0 else C.ENEMY_SPEED
++        self.x_vel = -1 * C.ENEMY_SPEED if self.direction == 0 else C.ENEMY_SPEED
+         self.y_vel = 0
+         self.gravity = C.GRAVITY
+         self.state = 'walk'
+@@ -46,11 +46,11 @@
+     def update(self,level):
+         self.current_time = pygame.time.get_ticks()
+ 
+-        self.handle_states()
++        self.handle_states(level)
+         self.update_position(level)
+ 
+ 
+-    def handle_states(self):                          #状态机
++    def handle_states(self,level):                          #状态机
+ 
+         #print(self.state)
+         if self.state == 'walk':
+@@ -60,11 +60,11 @@
+         elif self.state == 'die':
+             self.die()
+         elif self.state == 'trampled':
+-            self.trampled()
++            self.trampled(level)
+         elif self.state == 'slide':
+             self.slide()
+ 
+-        if self.direcion:
++        if self.direction:
+             self.image = self.right_frames[self.frame_index]
+         else:
+             self.image = self.left_frames[self.frame_index]
+@@ -97,22 +97,24 @@
+         if self.state != 'die' and self.state != 'trampled':                          #死亡后不做y方向的碰撞检测，方面淡出界面
+             self.check_y_collisions(level)
+ 
+-    def check_x_collisions(self,level):                         #需要传入地图的精灵组，不同的地图有不同的敌人
++    def check_x_collisions(self,level):
+         sprite = pygame.sprite.spritecollideany(self,level.ground_items_group)
+         if sprite:
+-            #self.direcion = 1 if self.direcion == 0 else  0
+-            if self.direcion:      #向右
+-                self.direcion = 0
++            # if self.name == 'koopa':
++            #     print(sprite.name)
++            #     print(self.rect.left)
++            if self.direction:      #向右
++                self.direction = 0
+                 self.rect.right = sprite.rect.left
+             else:
+-                self.direcion = 1
++                self.direction = 1
+                 self.rect.left = sprite.rect.right
+             self.x_vel *= -1
+ 
+         if self.state == 'slide':
+             enemy = pygame.sprite.spritecollideany(self,level.enemy_group)
+             if enemy:
+-                enemy.go_die(how = 'slided')
++                enemy.go_die(how = 'slided',direction = self.direction)
+                 level.enemy_group.remove(enemy)
+                 level.dying_group.add(enemy)
+ 
+@@ -128,9 +130,10 @@
+ 
+         level.check_will_fall(self)
+ 
+-    def go_die(self,how):
++    def go_die(self,how,direction = 1):
+         self.death_timer = self.current_time
+         if how == 'bumped' or how == 'slided':
++            self.x_vel = C.ENEMY_SPEED * direction
+             self.y_vel = -8
+             self.gravity = 0.6
+             self.state = 'die'
+@@ -152,7 +155,7 @@
+ 
+         Enemy.__init__(self,x,y_bottom,direction,name,frame_rects)
+ 
+-    def trampled(self):                                               #换个皮肤，掐个表，到点消
++    def trampled(self,level):                                               #换个皮肤，掐个表，到点消
+         #print("來了但meiosis")
+         self.x_vel = 0
+         self.frame_index = 2
+@@ -173,10 +176,20 @@
+             frame_rects = dark_frame_rects
+ 
+         Enemy.__init__(self,x, y_bottom, direction, name, frame_rects)
++        self.shell_timer = 0
+ 
+-    def trampled(self):                                               #换个皮肤，掐个表，到点消
++    def trampled(self,level):                                               #换个皮肤，掐个表，到点消
+         self.x_vel = 0
+         self.frame_index = 2
++                                                                        # 变成龟壳之后5秒钟不滑动会重新变成乌龟
++        if self.shell_timer == 0:
++            self.shell_timer = self.current_time
++        if self.current_time - self.shell_timer > 5000:
++            self.state = 'walk'
++            self.x_vel = - C.ENEMY_SPEED if self.direction == 0 else C.ENEMY_SPEED
++            level.enemy_group.add(self)
++            level.shell_group.remove(self)
++            self.shell_timer = 0
+ 
+     def slide(self):
+         pass
+Index: source/components/player.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>#玩家\r\nimport pygame\r\nfrom .. import setup,tools\r\nfrom .. import constants as C\r\nimport json\r\nimport os\r\n\r\n\r\nclass player(pygame.sprite.Sprite):\r\n    def __init__(self, name):\r\n        pygame.sprite.Sprite.__init__(self)\r\n        self.name = name\r\n        self.load_data()\r\n        self.setup_state()\r\n        self.setup_velocities()\r\n        self.setup_timers()\r\n        self.loadimages()\r\n\r\n\r\n    def load_data(self):                          #导入json文件\r\n        file_name = self.name + '.json'\r\n        file_path = os.path.join('source/data/player', file_name)              #文件路径\r\n        with open(file_path) as f:\r\n            self.player_data = json.load(f)\r\n\r\n    def setup_state(self):                    #主角状态\r\n        self.state = 'stand'\r\n        self.face_right = True                #是否朝向右边\r\n        self.dead = False                      #是否死亡\r\n        self.big = False                        #是否变大\r\n        self.can_jump = True                   #短时间内只能跳一次\r\n        self.hurt_immune = False                #无敌帧\r\n\r\n    def setup_velocities(self):                      #速度设置\r\n        speed = self.player_data['speed']\r\n        self.x_velocity = 0\r\n        self.y_velocity = 0                                #各方向上的速度\r\n\r\n        self.max_walk_vel = speed['max_walk_speed']\r\n        self.max_run_vel = speed['max_run_speed']\r\n        self.max_y_vel = speed['max_y_velocity']\r\n        self.walk_accel = speed['walk_accel']                   #走路加速度\r\n        self.run_accel = speed['run_accel']                    #跑步加速度\r\n        self.turn_accel = speed['turn_accel']                 #转身加速度\r\n        self.gravity = C.GRAVITY                                  #重力加速度\r\n        self.anti_gravity = C.ANTI_GRAVITY                         #逆转重力加速度（起跳加速度）\r\n        self.jump_vel = speed['jump_velocity']                     #起跳初速度\r\n\r\n        self.max_x_vel = self.max_walk_vel                         #初始的最大速度为最大的步行速度\r\n        self.x_accel = self.walk_accel                              #初始加速度为步行加速度\r\n\r\n\r\n    def setup_timers(self):                               #创建各种各样的计时器\r\n        self.walk_timer = 0\r\n        self.transision_timer = 0\r\n        self.death_timer = 0                               #记录死亡时间\r\n        self.hurt_immune_timer = 0\r\n\r\n    def loadimages(self):                            #主角的各种帧造型\r\n        sheet = setup.GRAPHICS['mario_bros']\r\n        frame_rects = self.player_data['image_frames']\r\n\r\n        self.right_small_normal_frames = []\r\n        self.left_small_normal_frames = []\r\n        self.right_big_normal_frames = []\r\n        self.left_big_normal_frames = []\r\n        self.right_big_fire_frames = []\r\n        self.left_big_fire_frames = []\r\n\r\n        self.small_normal_frames = [self.right_small_normal_frames,self.left_small_normal_frames]\r\n        self.big_normal_frames = [self.right_big_normal_frames,self.left_big_normal_frames]\r\n        self.big_fire_frames = [self.right_big_fire_frames,self.left_big_fire_frames]\r\n\r\n        self.all_frames = [\r\n            self.right_small_normal_frames,self.left_small_normal_frames,\r\n            self.right_big_normal_frames,self.left_big_normal_frames,\r\n            self.right_big_fire_frames,self.left_big_fire_frames,\r\n        ]\r\n\r\n        self.right_frames = self.right_small_normal_frames\r\n        self.left_frames = self.left_small_normal_frames                  #默认状态\r\n\r\n        # for frame_rect in frame_rects:\r\n        #     right_image = tools.get_image(sheet, *frame_rect ,(0,0,0), C.PLAYER_MULTI)                #向右的直接获得\r\n        #     left_iamge = pygame.transform.flip(right_image, True , False)                     #向左的翻转\r\n        #     up_image = pygame.transform.rotate(right_image, 90)                                  #向上的逆时针旋转九十度\r\n        #     down_image = pygame.transform.rotate(right_image, -90)                                      #向下的顺时针旋转九十度\r\n        #     self.right_frames.append(right_image)\r\n        #     self.left_frames.append(left_iamge)\r\n        #     self.up_frames.append(up_image)\r\n        #     self.down_frames.append(down_image)                                                  #添加到列表里面\r\n\r\n        #frame_rects.items() 是 Python 中的一个方法，用于返回字典 frame_rects 中的键值对\r\n        for group, group_frame_rects  in frame_rects.items():                       #将数据添加到合理的帧库\r\n            for frame_rect in group_frame_rects:\r\n                right_image = tools.get_image(sheet,frame_rect['x'],frame_rect['y'],frame_rect['width'],frame_rect['height'],(0,0,0),C.PLAYER_MULTI)\r\n                left_image = pygame.transform.flip(right_image,True,False)\r\n                if group == 'right_small_normal':\r\n                    self.right_small_normal_frames.append(right_image)\r\n                    self.left_small_normal_frames.append(left_image)\r\n                if group == 'right_big_normal':\r\n                    self.right_big_normal_frames.append(right_image)\r\n                    self.left_big_normal_frames.append(left_image)\r\n                if group == 'right_big_fire':\r\n                    self.right_big_fire_frames.append(right_image)\r\n                    self.left_big_fire_frames.append(left_image)\r\n        # self.frames.append(tools.get_image(sheet, 178,32,12,16,(0,0,0),C.PLAYER_MULTI))\r\n\r\n        self.frame_index = 0                                     #当前帧\r\n        self.frames = self.right_frames                           #初始状态向右\r\n        self.image = self.frames[self.frame_index]\r\n        self.rect = self.image.get_rect()\r\n\r\n    def update(self,keys):\r\n        self.current_time = pygame.time.get_ticks()\r\n        self.handle_states(keys)\r\n        self.is_hurt_immune()                                      #无敌状态\r\n\r\n    def handle_states(self, keys):                          #状态机\r\n\r\n        #print(self.state)\r\n        self.can_jump_or_not(keys)\r\n\r\n        if self.state == 'stand':\r\n            self.stand(keys)\r\n        elif self.state == 'walk':\r\n            self.walk(keys)\r\n        elif self.state == 'jump':\r\n            self.jump(keys)\r\n        elif self.state == 'fall' :\r\n            self.fall(keys)\r\n        elif self.state == 'die':\r\n            self.die(keys)\r\n        elif self.state == 'small2big':\r\n            self.small2big(keys)\r\n        elif self.state == 'big2small':\r\n            self.big2small(keys)\r\n\r\n\r\n        if self.face_right:\r\n            self.image = self.right_frames[self.frame_index]\r\n        else:\r\n            self.image = self.left_frames[self.frame_index]\r\n\r\n    def can_jump_or_not(self,keys):\r\n        if not keys[pygame.K_a]:\r\n            self.can_jump = True\r\n\r\n    def small2big(self,keys):\r\n        frame_dur = 65\r\n        sizes = [1,0,1,0,1,2,0,1,2,0,2]            #0 小 1 中 2 大\r\n        frames_and_idx = [(self.small_normal_frames,0),(self.small_normal_frames,7),(self.big_normal_frames,0)]        #取帧组里的第几帧\r\n        if self.transision_timer == 0:\r\n            self.big = True\r\n            self.transision_timer = self.current_time\r\n            self.changing_idx = 0                                                                             #变身帧造型序号\r\n        elif self.current_time - self.transision_timer > frame_dur:\r\n            self.transision_timer = self.current_time\r\n            frames, idx = frames_and_idx[sizes[self.changing_idx]]\r\n            self.change_player_image(frames, idx)\r\n            self.changing_idx += 1\r\n\r\n            if self.changing_idx == len(sizes):\r\n                self.transision_timer = 0\r\n                self.state = 'walk'\r\n                self.right_frames = self.right_big_normal_frames\r\n                self.left_frames = self.left_big_normal_frames\r\n    def big2small(self,keys):\r\n        #print(\"666\")\r\n        frame_dur = 65\r\n        sizes = [2, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]\r\n        frames_and_idx = [(self.small_normal_frames, 8), (self.big_normal_frames, 8), (self.big_normal_frames, 4)]\r\n        if self.transision_timer == 0:\r\n            self.big = False\r\n            self.fire = False\r\n            self.transision_timer = self.current_time\r\n            self.changing_idx = 0\r\n        elif self.current_time - self.transision_timer > frame_dur:\r\n            self.transision_timer = self.current_time\r\n            frames, idx = frames_and_idx[sizes[self.changing_idx]]\r\n            self.change_player_image(frames, idx)\r\n            self.changing_idx += 1\r\n            if self.changing_idx == len(sizes):\r\n                self.transision_timer = 0\r\n                self.state = 'walk'\r\n                self.right_frames = self.right_small_normal_frames\r\n                self.left_frames = self.left_small_normal_frames\r\n\r\n\r\n    def change_player_image(self,frames,idx):                  #换肤 改成对应的帧组的对应序号帧\r\n        self.frame_index = idx\r\n        if self.face_right:\r\n            self.right_frames = frames[0]\r\n            self.image =  self.right_frames[self.frame_index]\r\n        else:\r\n            self.left_frames = frames[1]\r\n            self.image = frames[1]\r\n            self.image = self.left_frames[self.frame_index]\r\n        last_frame_bottom = self.rect.bottom\r\n        last_frame_centerx = self.rect.centerx\r\n        self.rect = self.image.get_rect()\r\n        self.rect.bottom = last_frame_bottom\r\n        self.rect.centerx = last_frame_centerx             #前后帧的底部和中心位置与之统一\r\n\r\n\r\n\r\n    def stand(self,keys):\r\n        self.frame_index = 0\r\n        self.x_velocity = 0\r\n        self.y_velocity = 0\r\n        if keys[pygame.K_RIGHT]:\r\n            self.face_right = True\r\n            self.state = 'walk'\r\n        elif keys[pygame.K_LEFT]:\r\n            self.face_right = False\r\n            self.state = 'walk'\r\n        elif keys[pygame.K_a] and self.can_jump:\r\n            self.state = 'jump'\r\n            self.y_velocity = self.jump_vel\r\n\r\n    def walk(self,keys):\r\n        self.max_x_vel = self.max_walk_vel\r\n        self.x_accel = self.walk_accel\r\n\r\n        if keys[pygame.K_s]:                             #s键，按下后最大速度和加速度都变大\r\n\r\n            self.max_x_vel = self.max_run_vel\r\n            self.x_accel = self.run_accel\r\n        else:\r\n            self.max_x_vel = self.max_walk_vel\r\n            self.x_accel = self.walk_accel\r\n\r\n        if keys[pygame.K_a] and self.can_jump:\r\n            self.state = 'jump'\r\n            self.y_velocity = self.jump_vel\r\n\r\n        if self.current_time - self.walk_timer > self.calc_frame_duration():\r\n            self.frame_index += 1;\r\n            self.frame_index = (self.frame_index % 3 + 1 )\r\n            self.walk_timer = self.current_time\r\n        if keys[pygame.K_RIGHT]:\r\n            #print('sssssssssssssss')\r\n            self.face_right = True\r\n            if self.x_velocity < 0:\r\n                self.frame_index  = 5                            #刹车帧\r\n                self.x_accel = self.turn_accel\r\n            self.x_velocity = self.calc_val(self.x_velocity,self.x_accel,self.max_x_vel,True)       #右加速\r\n        elif keys[pygame.K_LEFT]:\r\n            self.face_right = False\r\n            if self.x_velocity > 0:\r\n                self.frame_index = 5\r\n                self.x_accel = self.turn_accel\r\n            self.x_velocity = self.calc_val(self.x_velocity,self.x_accel,self.max_x_vel,False)          #左加速\r\n        else:\r\n            if self.face_right:\r\n                self.x_velocity -= self.walk_accel\r\n                if self.x_velocity < 0:\r\n                    self.x_velocity = 0\r\n                    self.state = 'stand'\r\n            else:\r\n                self.x_velocity += self.walk_accel\r\n                if self.x_velocity > 0:\r\n                    self.x_velocity = 0\r\n                    self.state = 'stand'\r\n\r\n\r\n    def jump(self,keys):                     #跳跃在行走和站立时需要都能处理\r\n        self.frame_index = 4                             #起跳使用第四帧\r\n        self.y_velocity += self.anti_gravity\r\n        self.can_jump = False                     #按下a以后不能再跳\r\n\r\n        if self.y_velocity >= 0:\r\n            self.state = 'fall'                             #y方向速度为0，开始下落\r\n\r\n        if not keys[pygame.K_a]:                                     #没按跳就进入下落状态\r\n            self.state = 'fall'\r\n\r\n        #空中左右动\r\n        if keys[pygame.K_RIGHT]:\r\n            self.x_velocity = self.calc_val(self.x_velocity,self.x_accel,self.max_x_vel,True)       #右加速\r\n        elif keys[pygame.K_LEFT]:\r\n            self.x_velocity = self.calc_val(self.x_velocity,self.x_accel,self.max_x_vel,False)          #左加速\r\n\r\n    def fall(self,keys):\r\n        self.y_velocity = self.calc_val(self.y_velocity,self.gravity,self.max_y_vel,True)\r\n\r\n         # 空中左右动\r\n        if keys[pygame.K_RIGHT]:\r\n             self.x_velocity = self.calc_val(self.x_velocity, self.x_accel, self.max_x_vel, True)  # 右加速\r\n        elif keys[pygame.K_LEFT]:\r\n            self.x_velocity = self.calc_val(self.x_velocity, self.x_accel, self.max_x_vel, False)  # 左加速\r\n\r\n\r\n    def go_die(self):\r\n        self.dead = True\r\n        self.y_velocity = self.jump_vel\r\n        #print(self.y_velocity)\r\n        self.frame_index = 6                  #死亡造型\r\n        self.state = 'die'\r\n        print(self.anti_gravity)\r\n        self.death_timer = self.current_time\r\n\r\n    def die(self,keys):\r\n\r\n        self.rect.y += self.y_velocity                                #避开死亡碰撞检测,当下落到边界以外，触发死亡\r\n        #print(self.y_velocity)\r\n        self.y_velocity += self.anti_gravity\r\n\r\n\r\n    def calc_val(self,vel ,accel, max_val, is_positive = True):\r\n        if is_positive:\r\n            return min(vel + accel, max_val)                 #达到最大速度之前一直加速\r\n        else:\r\n            return max(vel - accel, -max_val)                 #达到反向最大速度之前一直减速\r\n\r\n\r\n    def calc_frame_duration(self):                          #帧持久计算，对应速度下动画帧的刷新速度\r\n        durantion = -60 / self.max_run_vel * abs(self.x_velocity) + 80\r\n        return durantion\r\n\r\n    def is_hurt_immune(self):\r\n        if self.hurt_immune:\r\n            if self.hurt_immune_timer == 0:\r\n                self.hurt_immune_timer = self.current_time\r\n                self.black_image = pygame.Surface((1,1))\r\n            elif self.current_time - self.hurt_immune_timer < 2000:\r\n                if (self.current_time - self.hurt_immune_timer) % 100 < 50:                           #前50ms显示空白帧，后五十ms正常显示\r\n                    self.image = self.black_image\r\n            else:\r\n                self.hurt_immune = False\r\n                self.hurt_immune_timer = 0\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/source/components/player.py b/source/components/player.py
+--- a/source/components/player.py	(revision 0e20a88045cea73ac339fc5ed99b13dc5a1aaa33)
++++ b/source/components/player.py	(date 1717930387949)
+@@ -1,7 +1,9 @@
+ #玩家
+ import pygame
++from . import powerup
+ from .. import setup,tools
+ from .. import constants as C
++#from ..state import level
+ import json
+ import os
+ 
+@@ -30,6 +32,8 @@
+         self.big = False                        #是否变大
+         self.can_jump = True                   #短时间内只能跳一次
+         self.hurt_immune = False                #无敌帧
++        self.fire = False                       #火焰状态
++        self.can_shoot  = True                       #是否能够发射子弹
+ 
+     def setup_velocities(self):                      #速度设置
+         speed = self.player_data['speed']
+@@ -55,6 +59,7 @@
+         self.transision_timer = 0
+         self.death_timer = 0                               #记录死亡时间
+         self.hurt_immune_timer = 0
++        self.last_fireball_timer = 0
+ 
+     def loadimages(self):                            #主角的各种帧造型
+         sheet = setup.GRAPHICS['mario_bros']
+@@ -111,30 +116,33 @@
+         self.image = self.frames[self.frame_index]
+         self.rect = self.image.get_rect()
+ 
+-    def update(self,keys):
++    def update(self,keys,level):
++        #print(self.state)
+         self.current_time = pygame.time.get_ticks()
+-        self.handle_states(keys)
++        self.handle_states(keys,level)
+         self.is_hurt_immune()                                      #无敌状态
+ 
+-    def handle_states(self, keys):                          #状态机
++    def handle_states(self, keys,level):                          #状态机
+ 
+         #print(self.state)
+         self.can_jump_or_not(keys)
+-
++        self.can_shoot_or_not(keys)
+         if self.state == 'stand':
+-            self.stand(keys)
++            self.stand(keys,level)
+         elif self.state == 'walk':
+-            self.walk(keys)
++            self.walk(keys,level)
+         elif self.state == 'jump':
+-            self.jump(keys)
++            self.jump(keys,level)
+         elif self.state == 'fall' :
+-            self.fall(keys)
++            self.fall(keys,level)
+         elif self.state == 'die':
+             self.die(keys)
+         elif self.state == 'small2big':
+             self.small2big(keys)
+         elif self.state == 'big2small':
+             self.big2small(keys)
++        elif self.state == 'big2fire':
++            self.big2fire(keys)
+ 
+ 
+         if self.face_right:
+@@ -142,6 +150,10 @@
+         else:
+             self.image = self.left_frames[self.frame_index]
+ 
++    def can_shoot_or_not(self,keys):
++        if not keys[pygame.K_s]:
++            self.can_shoot = True
++
+     def can_jump_or_not(self,keys):
+         if not keys[pygame.K_a]:
+             self.can_jump = True
+@@ -186,6 +198,26 @@
+                 self.right_frames = self.right_small_normal_frames
+                 self.left_frames = self.left_small_normal_frames
+ 
++    def big2fire(self, keys):              #抄small2big
++
++        frame_dur = 65                                       #换帧造型
++        sizes = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]                        #0 大火 1 普大
++        frames_and_idx = [(self.big_fire_frames, 3), (self.big_normal_frames, 3)]
++        if self.transision_timer == 0:
++            self.fire = True
++            self.transision_timer = self.current_time
++            self.changing_idx = 0
++        elif self.current_time - self.transision_timer > frame_dur:
++            self.transision_timer = self.current_time
++            frames, idx = frames_and_idx[sizes[self.changing_idx]]
++            self.change_player_image(frames, idx)
++            self.changing_idx += 1
++            if self.changing_idx == len(sizes):
++                self.transition_timer = 0
++                self.state = 'walk'
++                self.right_frames = self.right_big_fire_frames
++                self.left_frames = self.left_big_fire_frames
++
+ 
+     def change_player_image(self,frames,idx):                  #换肤 改成对应的帧组的对应序号帧
+         self.frame_index = idx
+@@ -204,7 +236,7 @@
+ 
+ 
+ 
+-    def stand(self,keys):
++    def stand(self,keys,level):
+         self.frame_index = 0
+         self.x_velocity = 0
+         self.y_velocity = 0
+@@ -217,15 +249,18 @@
+         elif keys[pygame.K_a] and self.can_jump:
+             self.state = 'jump'
+             self.y_velocity = self.jump_vel
++        elif keys[pygame.K_s] and self.fire and self.can_shoot:
++            self.shoot_fireball(level)
+ 
+-    def walk(self,keys):
++    def walk(self,keys,level):
+         self.max_x_vel = self.max_walk_vel
+         self.x_accel = self.walk_accel
+ 
+         if keys[pygame.K_s]:                             #s键，按下后最大速度和加速度都变大
+-
+             self.max_x_vel = self.max_run_vel
+             self.x_accel = self.run_accel
++            if self.fire and self.can_shoot:
++                self.shoot_fireball(level)
+         else:
+             self.max_x_vel = self.max_walk_vel
+             self.x_accel = self.walk_accel
+@@ -264,7 +299,7 @@
+                     self.state = 'stand'
+ 
+ 
+-    def jump(self,keys):                     #跳跃在行走和站立时需要都能处理
++    def jump(self,keys,level):                     #跳跃在行走和站立时需要都能处理
+         self.frame_index = 4                             #起跳使用第四帧
+         self.y_velocity += self.anti_gravity
+         self.can_jump = False                     #按下a以后不能再跳
+@@ -274,6 +309,8 @@
+ 
+         if not keys[pygame.K_a]:                                     #没按跳就进入下落状态
+             self.state = 'fall'
++        elif keys[pygame.K_s] and self.fire and self.can_shoot:
++            self.shoot_fireball(level)
+ 
+         #空中左右动
+         if keys[pygame.K_RIGHT]:
+@@ -281,7 +318,7 @@
+         elif keys[pygame.K_LEFT]:
+             self.x_velocity = self.calc_val(self.x_velocity,self.x_accel,self.max_x_vel,False)          #左加速
+ 
+-    def fall(self,keys):
++    def fall(self,keys,level):
+         self.y_velocity = self.calc_val(self.y_velocity,self.gravity,self.max_y_vel,True)
+ 
+          # 空中左右动
+@@ -289,6 +326,8 @@
+              self.x_velocity = self.calc_val(self.x_velocity, self.x_accel, self.max_x_vel, True)  # 右加速
+         elif keys[pygame.K_LEFT]:
+             self.x_velocity = self.calc_val(self.x_velocity, self.x_accel, self.max_x_vel, False)  # 左加速
++        elif keys[pygame.K_s] and self.fire:
++            self.shoot_fireball(level)
+ 
+ 
+     def go_die(self):
+@@ -329,3 +368,12 @@
+             else:
+                 self.hurt_immune = False
+                 self.hurt_immune_timer = 0
++
++    def shoot_fireball(self, level):                                           #为了传入powerup_group加入level参数
++        if self.current_time - self.last_fireball_timer > 300:  # 控制发射频率
++            self.frame_index = 6  # 发射姿势
++            fireball = powerup.Fireball(self.rect.centerx, self.rect.centery, self.face_right)
++            level.powerup_group.add(fireball)
++            self.can_shoot = False
++            self.last_fireball_timer = self.current_time
++
+Index: source/components/box.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>#盒子\r\n\r\nimport pygame\r\nfrom .. import tools ,setup\r\nfrom .. import constants as C\r\nfrom .powerup import create_powerup\r\n\r\n\r\nclass Box(pygame.sprite.Sprite):\r\n    def __init__(self,x,y,box_type,group,name = 'box'):\r\n        pygame.sprite.Sprite.__init__(self)\r\n        self.x = x\r\n        self.y = y\r\n        self.name = name\r\n        self.box_type = box_type\r\n        self.group = group\r\n\r\n        self.frame_rects = {\r\n            (384,0,16,16),\r\n            (400, 0, 16, 16),\r\n            (416, 0, 16, 16),\r\n            (432, 0, 16, 16),\r\n        }\r\n\r\n\r\n\r\n        self.frames = []\r\n        for frame_rect in self.frame_rects:\r\n            self.frames.append(tools.get_image(setup.GRAPHICS['tile_set'],*frame_rect,(0,30,0),C.BRICK_MULTI))\r\n\r\n        self.frame_index = 0\r\n        self.image = self.frames[self.frame_index]\r\n        self.rect = self.image.get_rect()\r\n        self.rect.x = self.x\r\n        self.rect.y = self.y\r\n        self.gravity = C.GRAVITY\r\n\r\n        self.state = 'rest'\r\n        self.timer = 0\r\n\r\n    def update(self):\r\n        self.current_time = pygame.time.get_ticks()\r\n        self.handle_states()\r\n\r\n    def handle_states(self):\r\n        if self.state == 'rest':\r\n            self.rest()\r\n        elif self.state == 'bumped':\r\n            self.bumped()\r\n        elif self.state == 'open':\r\n            self.open()\r\n\r\n    def rest(self):\r\n        frame_durarions = [400,100,100,50]\r\n        if self.current_time - self.timer > frame_durarions[self.frame_index]:\r\n            self.frame_index = (self.frame_index + 1) % 4\r\n            self.timer = self.current_time\r\n        self.image = self.frames[self.frame_index]\r\n\r\n    def go_bumped(self):\r\n        self.y_vel = -7\r\n        self.state = 'bumped'\r\n    def bumped(self):\r\n        self.rect.y += self.y_vel\r\n        self.y_vel += self.gravity\r\n\r\n        self.frame_index = 3\r\n        self.image = self.frames[self.frame_index]\r\n\r\n        if self.rect.y >= self.y :\r\n            self.y_vel = 0\r\n            #self.rect.y = self.y\r\n            self.state = 'open'\r\n\r\n            #box_type = 0,1,2,3对应 空 金币 星星 蘑菇\r\n            if self.box_type == 1:\r\n                pass\r\n            else:\r\n                self.group.add(create_powerup(self.rect.centerx,self.rect.centery,self.box_type))\r\n\r\n    def open(self):\r\n        pass
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/source/components/box.py b/source/components/box.py
+--- a/source/components/box.py	(revision 0e20a88045cea73ac339fc5ed99b13dc5a1aaa33)
++++ b/source/components/box.py	(date 1717922986774)
+@@ -79,4 +79,5 @@
+                 self.group.add(create_powerup(self.rect.centerx,self.rect.centery,self.box_type))
+ 
+     def open(self):
+-        pass
+\ No newline at end of file
++        self.frame_index = 3
++        self.image = self.frames[self.frame_index]
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"AutoImportSettings\">\r\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\r\n  </component>\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"ff881590-5e15-40a9-a8cb-4e8b38f048e8\" name=\"更改\" comment=\"\">\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/SuperMario.iml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/SuperMario.iml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/misc.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/misc.xml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/workspace.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/workspace.xml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/main.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/main.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/components/box.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/components/box.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/components/brick.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/components/brick.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/components/coins.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/components/coins.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/components/enemy.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/components/enemy.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/components/info.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/components/info.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/components/player.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/components/player.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/components/powerup.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/components/powerup.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/components/stuff.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/components/stuff.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/constants.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/constants.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/setup.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/setup.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/state/level.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/state/level.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/state/load_screen.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/state/load_screen.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/state/main_menu.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/state/main_menu.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/source/tools.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/source/tools.py\" afterDir=\"false\" />\r\n    </list>\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"FileTemplateManagerImpl\">\r\n    <option name=\"RECENT_TEMPLATES\">\r\n      <list>\r\n        <option value=\"Python Script\" />\r\n      </list>\r\n    </option>\r\n  </component>\r\n  <component name=\"Git.Settings\">\r\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\r\n  </component>\r\n  <component name=\"GitHubPullRequestSearchHistory\"><![CDATA[{\r\n  \"lastFilter\": {\r\n    \"state\": \"OPEN\",\r\n    \"assignee\": \"droopy-debug\"\r\n  }\r\n}]]></component>\r\n  <component name=\"GithubPullRequestsUISettings\"><![CDATA[{\r\n  \"selectedUrlAndAccountId\": {\r\n    \"url\": \"https://github.com/droopy-debug/SuperMario.git\",\r\n    \"accountId\": \"99235199-3b61-45b4-a578-7bc212c0ff48\"\r\n  }\r\n}]]></component>\r\n  <component name=\"ProblemsViewState\">\r\n    <option name=\"selectedTabId\" value=\"ProjectErrors\" />\r\n  </component>\r\n  <component name=\"ProjectColorInfo\">{\r\n  &quot;associatedIndex&quot;: 5\r\n}</component>\r\n  <component name=\"ProjectId\" id=\"2g8FahJu6VpuNk6orfU5JpLlKLh\" />\r\n  <component name=\"ProjectLevelVcsManager\" settingsEditedManually=\"true\">\r\n    <ConfirmationsSetting value=\"2\" id=\"Add\" />\r\n  </component>\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\"><![CDATA[{\r\n  \"keyToString\": {\r\n    \"Python.main.executor\": \"Run\",\r\n    \"Python.tools.executor\": \"Run\",\r\n    \"Python.玩具代码.executor\": \"Run\",\r\n    \"RunOnceActivity.ShowReadmeOnStart\": \"true\",\r\n    \"git-widget-placeholder\": \"master\",\r\n    \"last_opened_file_path\": \"E:/softwares/python/project/SuperMario\",\r\n    \"node.js.detected.package.eslint\": \"true\",\r\n    \"node.js.detected.package.tslint\": \"true\",\r\n    \"node.js.selected.package.eslint\": \"(autodetect)\",\r\n    \"node.js.selected.package.tslint\": \"(autodetect)\",\r\n    \"nodejs_package_manager_path\": \"npm\",\r\n    \"settings.editor.selected.configurable\": \"vcs.Git\",\r\n    \"vue.rearranger.settings.migration\": \"true\"\r\n  }\r\n}]]></component>\r\n  <component name=\"RunManager\" selected=\"Python.main\">\r\n    <configuration name=\"玩具代码\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"SuperMario\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$/../../resource/test\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"false\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <EXTENSION ID=\"PythonCoverageRunConfigurationExtension\" runner=\"coverage.py\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/../../resource/test/玩具代码.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"main\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"SuperMario\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <EXTENSION ID=\"PythonCoverageRunConfigurationExtension\" runner=\"coverage.py\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/main.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <recent_temporary>\r\n      <list>\r\n        <item itemvalue=\"Python.main\" />\r\n        <item itemvalue=\"Python.玩具代码\" />\r\n      </list>\r\n    </recent_temporary>\r\n  </component>\r\n  <component name=\"SharedIndexes\">\r\n    <attachedChunks>\r\n      <set>\r\n        <option value=\"bundled-python-sdk-48aec45f0201-746f403e7f0c-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-241.17011.127\" />\r\n      </set>\r\n    </attachedChunks>\r\n  </component>\r\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"应用程序级\" UseSingleDictionary=\"true\" transferred=\"true\" />\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"默认任务\">\r\n      <changelist id=\"ff881590-5e15-40a9-a8cb-4e8b38f048e8\" name=\"更改\" comment=\"\" />\r\n      <created>1715071363083</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1715071363083</updated>\r\n      <workItem from=\"1715071365072\" duration=\"10588000\" />\r\n      <workItem from=\"1715095548257\" duration=\"2412000\" />\r\n      <workItem from=\"1715098176585\" duration=\"31000\" />\r\n      <workItem from=\"1715422785931\" duration=\"3862000\" />\r\n      <workItem from=\"1715772792043\" duration=\"5554000\" />\r\n      <workItem from=\"1715822134342\" duration=\"2550000\" />\r\n      <workItem from=\"1715839457826\" duration=\"12720000\" />\r\n      <workItem from=\"1716091021120\" duration=\"2865000\" />\r\n      <workItem from=\"1716095580585\" duration=\"4533000\" />\r\n      <workItem from=\"1716441090589\" duration=\"2681000\" />\r\n      <workItem from=\"1717424972825\" duration=\"4258000\" />\r\n      <workItem from=\"1717490152315\" duration=\"7245000\" />\r\n    </task>\r\n    <servers />\r\n  </component>\r\n  <component name=\"TypeScriptGeneratedFilesManager\">\r\n    <option name=\"version\" value=\"3\" />\r\n  </component>\r\n  <component name=\"Vcs.Log.Tabs.Properties\">\r\n    <option name=\"TAB_STATES\">\r\n      <map>\r\n        <entry key=\"MAIN\">\r\n          <value>\r\n            <State />\r\n          </value>\r\n        </entry>\r\n      </map>\r\n    </option>\r\n  </component>\r\n  <component name=\"com.intellij.coverage.CoverageDataManagerImpl\">\r\n    <SUITE FILE_PATH=\"coverage/SuperMario$tools.coverage\" NAME=\"tools 覆盖结果\" MODIFIED=\"1715072829739\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"false\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$/source\" />\r\n    <SUITE FILE_PATH=\"coverage/SuperMario$main.coverage\" NAME=\"main 覆盖结果\" MODIFIED=\"1717496759726\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"false\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$\" />\r\n    <SUITE FILE_PATH=\"coverage/SuperMario$.coverage\" NAME=\"玩具代码 覆盖结果\" MODIFIED=\"1715073924163\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"false\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$/../../resource/test\" />\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision 0e20a88045cea73ac339fc5ed99b13dc5a1aaa33)
++++ b/.idea/workspace.xml	(date 1717929934811)
+@@ -4,25 +4,14 @@
+     <option name="autoReloadType" value="SELECTIVE" />
+   </component>
+   <component name="ChangeListManager">
+-    <list default="true" id="ff881590-5e15-40a9-a8cb-4e8b38f048e8" name="更改" comment="">
+-      <change beforePath="$PROJECT_DIR$/.idea/SuperMario.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/SuperMario.iml" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
++    <list default="true" id="ff881590-5e15-40a9-a8cb-4e8b38f048e8" name="更改" comment="2">
+       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/source/components/box.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/box.py" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/source/components/brick.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/brick.py" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/source/components/coins.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/coins.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/source/components/enemy.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/enemy.py" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/source/components/info.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/info.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/source/components/player.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/player.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/source/components/powerup.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/powerup.py" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/source/components/stuff.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/stuff.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/source/constants.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/constants.py" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/source/setup.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/setup.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/source/state/level.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/level.py" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/source/state/load_screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/load_screen.py" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/source/state/main_menu.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/main_menu.py" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/source/tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/tools.py" afterDir="false" />
+     </list>
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+@@ -51,6 +40,9 @@
+     "accountId": "99235199-3b61-45b4-a578-7bc212c0ff48"
+   }
+ }]]></component>
++  <component name="NamedScopeManager">
++    <scope name="未命名" pattern="file[SuperMario]:*" />
++  </component>
+   <component name="ProblemsViewState">
+     <option name="selectedTabId" value="ProjectErrors" />
+   </component>
+@@ -82,6 +74,9 @@
+     "vue.rearranger.settings.migration": "true"
+   }
+ }]]></component>
++  <component name="PyFindUsagesOptions">
++    <option name="isSearchForTextOccurrences" value="true" />
++  </component>
+   <component name="RunManager" selected="Python.main">
+     <configuration name="玩具代码" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+       <module name="SuperMario" />
+@@ -164,6 +159,15 @@
+       <workItem from="1717424972825" duration="4258000" />
+       <workItem from="1717490152315" duration="7245000" />
+     </task>
++    <task id="LOCAL-00001" summary="2">
++      <option name="closed" value="true" />
++      <created>1717920479703</created>
++      <option name="number" value="00001" />
++      <option name="presentableId" value="LOCAL-00001" />
++      <option name="project" value="LOCAL" />
++      <updated>1717920479703</updated>
++    </task>
++    <option name="localTasksCounter" value="2" />
+     <servers />
+   </component>
+   <component name="TypeScriptGeneratedFilesManager">
+@@ -179,6 +183,10 @@
+         </entry>
+       </map>
+     </option>
++  </component>
++  <component name="VcsManagerConfiguration">
++    <MESSAGE value="2" />
++    <option name="LAST_COMMIT_MESSAGE" value="2" />
+   </component>
+   <component name="com.intellij.coverage.CoverageDataManagerImpl">
+     <SUITE FILE_PATH="coverage/SuperMario$tools.coverage" NAME="tools 覆盖结果" MODIFIED="1715072829739" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/source" />
