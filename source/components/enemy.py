@@ -1,0 +1,182 @@
+#敌人
+import pygame
+from .. import setup,tools
+from .. import constants as C
+
+def create_enemy(enemy_data):
+    enemy_type = enemy_data['type']
+    x ,y_bottom ,direction ,color = enemy_data['x'],enemy_data['y'],enemy_data['direction'],enemy_data['color']
+
+    if enemy_type == 0:
+        enemy = Goomba(x ,y_bottom,direction ,"goomba",color)
+    elif enemy_type == 1:
+        enemy = Koopa(x ,y_bottom,direction ,"koopa",color)
+
+    return enemy
+
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self,x,y_bottom,direction,name,frame_rects):
+        pygame.sprite.Sprite.__init__(self)
+        self.direcion = direction
+        self.name = name
+        self.frame_index = 0
+        self.left_frames = []
+        self.right_frames = []
+
+        self.load_frames(frame_rects)
+        self.frames = self.left_frames if self.direcion ==  0 else self.right_frames
+        self.image = self.frames[self.frame_index]
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.bottom = y_bottom
+
+        self.timer = 0
+        self.x_vel = -1 * C.ENEMY_SPEED if self.direcion == 0 else C.ENEMY_SPEED
+        self.y_vel = 0
+        self.gravity = C.GRAVITY
+        self.state = 'walk'
+
+    def load_frames(self,frames_rects):
+        for frames_rect in frames_rects:
+            left_frames = tools.get_image(setup.GRAPHICS['enemies'],*frames_rect,(0,0,0),C.ENEMY_MULTI)
+            right_frames = pygame.transform.flip(left_frames,True,False)
+            self.left_frames.append(left_frames)
+            self.right_frames.append(right_frames)
+
+    def update(self,level):
+        self.current_time = pygame.time.get_ticks()
+
+        self.handle_states()
+        self.update_position(level)
+
+
+    def handle_states(self):                          #状态机
+
+        #print(self.state)
+        if self.state == 'walk':
+            self.walk()
+        elif self.state == 'fall' :
+            self.fall()
+        elif self.state == 'die':
+            self.die()
+        elif self.state == 'trampled':
+            self.trampled()
+        elif self.state == 'slide':
+            self.slide()
+
+        if self.direcion:
+            self.image = self.right_frames[self.frame_index]
+        else:
+            self.image = self.left_frames[self.frame_index]
+
+    def walk(self):
+        if self.current_time - self.timer > 125:
+            self.frame_index = (self.frame_index + 1) % 2
+            self.timer = self.current_time
+            self.image = self.frames[self.frame_index]
+
+    def fall(self):
+        if self.y_vel < 10:
+            self.y_vel += self.gravity
+
+    def die(self):
+        self.rect.x += self.x_vel
+        self.rect.y += self.y_vel
+        self.y_vel += self.gravity
+        if self.rect.y > C.SCREEN_H:
+            self.kill()
+
+    def trampled(self):
+        pass
+
+    def update_position(self,level):
+        self.rect.x += self.x_vel
+        self.check_x_collisions(level)
+
+        self.rect.y += self.y_vel
+        if self.state != 'die' and self.state != 'trampled':                          #死亡后不做y方向的碰撞检测，方面淡出界面
+            self.check_y_collisions(level)
+
+    def check_x_collisions(self,level):                         #需要传入地图的精灵组，不同的地图有不同的敌人
+        sprite = pygame.sprite.spritecollideany(self,level.ground_items_group)
+        if sprite:
+            #self.direcion = 1 if self.direcion == 0 else  0
+            if self.direcion:      #向右
+                self.direcion = 0
+                self.rect.right = sprite.rect.left
+            else:
+                self.direcion = 1
+                self.rect.left = sprite.rect.right
+            self.x_vel *= -1
+
+        if self.state == 'slide':
+            enemy = pygame.sprite.spritecollideany(self,level.enemy_group)
+            if enemy:
+                enemy.go_die(how = 'slided')
+                level.enemy_group.remove(enemy)
+                level.dying_group.add(enemy)
+
+
+    def check_y_collisions(self,level):
+        check_group = pygame.sprite.Group(level.ground_items_group,level.boxes_group,level.brick_group)
+        sprite = pygame.sprite.spritecollideany(self,check_group)
+        if sprite:
+            if self.rect.top < sprite.rect.top:
+                self.rect.bottom = sprite.rect.top
+                self.y_vel = 0
+                self.state = 'walk'
+
+        level.check_will_fall(self)
+
+    def go_die(self,how):
+        self.death_timer = self.current_time
+        if how == 'bumped' or how == 'slided':
+            self.y_vel = -8
+            self.gravity = 0.6
+            self.state = 'die'
+            self.frame_index = 2
+        elif how == 'trampled':
+            self.state = 'trampled'
+
+
+
+class Goomba(Enemy):
+    def __init__(self,x,y_bottom,direction,name,color):
+        bright_frame_rects = [(0,16,16,16),(16,16,16,16),(32,16,16,16)]
+        dark_frame_rects = [(0,48,16,16),(16,48,16,16),(32,48,16,16)]
+
+        if not color:
+            frame_rects = bright_frame_rects
+        else:
+            frame_rects = dark_frame_rects
+
+        Enemy.__init__(self,x,y_bottom,direction,name,frame_rects)
+
+    def trampled(self):                                               #换个皮肤，掐个表，到点消
+        #print("來了但meiosis")
+        self.x_vel = 0
+        self.frame_index = 2
+        #print(self.death_timer)
+        if self.death_timer == 0:
+            self.death_timer = self.current_time
+        if self.current_time - self.death_timer > 500:
+            self.kill()
+
+class Koopa(Enemy):
+    def __init__(self, x, y_bottom, direction, name, color):
+        bright_frame_rects = [(96, 9, 16, 22), (112, 9, 16, 22), (160, 9, 16, 22)]
+        dark_frame_rects = [(96,72,16,22), (112,72,16,22), (160,72,16,22)]
+
+        if not color:
+            frame_rects = bright_frame_rects
+        else:
+            frame_rects = dark_frame_rects
+
+        Enemy.__init__(self,x, y_bottom, direction, name, frame_rects)
+
+    def trampled(self):                                               #换个皮肤，掐个表，到点消
+        self.x_vel = 0
+        self.frame_index = 2
+
+    def slide(self):
+        pass
