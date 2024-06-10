@@ -14,7 +14,7 @@ class Brick(pygame.sprite.Sprite):
         self.color = color
         self.group = group
 
-        bright_rect_frames = [(16,0,16,16),(48,0,16,16)]
+        bright_rect_frames = [(16,0,16,16),(432, 0, 16, 16)]
         dark_rect_frames = [(16,32,16,16),(48,32,16,16)]
 
         if not color:

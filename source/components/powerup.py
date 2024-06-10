@@ -7,7 +7,7 @@ from .. import constants as C
 def create_powerup(centerx,centery,type):
     """create powerup based on type and mario state"""
 
-    if type ==3:
+    if type ==3 or type == 2:
         return Mushroom(centerx,centery)
     elif type == 4:
         return FireFlower(centerx,centery)
