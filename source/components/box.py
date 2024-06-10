@@ -26,7 +26,7 @@ class Box(pygame.sprite.Sprite):
 
         self.frames = []
         for frame_rect in self.frame_rects:
-            self.frames.append(tools.get_image(setup.GRAPHICS['tile_set'],*frame_rect,(0,30,0),C.BRICK_MULTI))
+            self.frames.append(tools.get_image(setup.GRAPHICS['tile_set'],*frame_rect,(0,0,0),C.BRICK_MULTI))
 
         self.frame_index = 0
         self.image = self.frames[self.frame_index]

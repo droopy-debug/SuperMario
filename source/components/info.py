@@ -29,7 +29,7 @@ class Info:
         elif self.state == 'game_over':
             self.state_lables.append((self.create_lable('GAME OVER'), (280,300)))
         elif self.state == 'congradulations':
-            self.state_lables.append((self.create_lable('Congradulations !'), (280, 300)))
+            self.state_lables.append((self.create_lable('Congradulations !'), (260, 300)))
 
 
     def create_info_labels(self):                     #通用信息

@@ -15,6 +15,9 @@ class load_Screen:
         self.info = info.Info('load_screen',self.game_info)
 
     def update(self, surface ,keys):
+        if self.timer == 0:
+            self.timer = pygame.time.get_ticks()
+
         if self.game_info['sound'] != 'congradulations':
             if self.game_info['lives'] == 3:
                 self.game_info['sound'] = 'main_theme'
@@ -22,24 +25,20 @@ class load_Screen:
                 self.game_info['sound'] = 'death_wav'
             else:
                 self.game_info['sound'] = 'game_over'
-                if self.timer == 0:
-                    self.timer = pygame.time.get_ticks()
-                elif self.game_info['lives'] == 0 and pygame.time.get_ticks() - self.timer > 5000:
-                    self.finished = True
-                    self.timer = 0
-                    self.game_info['sound'] = 'main_theme'
-                elif pygame.time.get_ticks() - self.timer > 3000 and self.game_info['lives'] > 0:
-                    self.finished = True
-                    self.timer = 0
-                    self.game_info['sound'] = 'main_theme'
+
+            if pygame.time.get_ticks() - self.timer > 2500:
+                self.finished = True
+                self.timer = 0
+                self.game_info['sound'] = 'main_theme'
+
+
         else:
-            pass
-        if self.timer == 0:
-            self.timer = pygame.time.get_ticks()
-        elif pygame.time.get_ticks() - self.timer > 6000:
-            self.finished = True
-            self.timer = 0
-            self.game_info['sound'] = 'main_theme'
+                if pygame.time.get_ticks() - self.timer > 6000:
+                    self.finished = True
+                    self.timer = 0
+                    self.game_info['sound'] = 'main_theme'
+
+
         self.draw(surface)
         self.info.update()
 

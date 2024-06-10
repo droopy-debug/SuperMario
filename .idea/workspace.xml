@@ -5,16 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ff881590-5e15-40a9-a8cb-4e8b38f048e8" name="更改" comment="the day l6">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/source/components/enemy.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/enemy.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/source/components/peach.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/components/box.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/box.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/components/brick.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/brick.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/source/components/info.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/info.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/source/components/player.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/player.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/source/sound.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/sound.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/source/state/level.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/level.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/source/state/load_screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/load_screen.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/source/state/main_menu.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/main_menu.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/source/tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/tools.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -220,7 +216,15 @@
       <option name="project" value="LOCAL" />
       <updated>1717939574369</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="the day l6">
+      <option name="closed" value="true" />
+      <created>1718010515650</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1718010515650</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

@@ -24,7 +24,7 @@ class Brick(pygame.sprite.Sprite):
 
         self.frames = []
         for frame_rect in self.frame_rects:
-            self.frames.append(tools.get_image(setup.GRAPHICS['tile_set'],*frame_rect,(0,30,0),C.BRICK_MULTI))
+            self.frames.append(tools.get_image(setup.GRAPHICS['tile_set'],*frame_rect,(0,0,0),C.BRICK_MULTI))
 
         self.frame_index = 0
         self.image = self.frames[self.frame_index]
@@ -63,9 +63,10 @@ class Brick(pygame.sprite.Sprite):
 
             if self.brick_type == 0:
                 self.state = 'rest'
+            elif self.brick_type == 1:
+                self.state = 'open'
             else:
                 self.state = 'open'
-                print(self.brick_type)
                 self.group.add(create_powerup(self.rect.centerx,self.rect.centery,self.brick_type))
 
 

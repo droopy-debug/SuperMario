@@ -4,7 +4,8 @@ import os
 
 from .. import tools,setup
 from .. import constants as C
-from .. components import info,player,stuff,brick,box,enemy
+from .. components import info,player,stuff,brick,box,enemy,peach
+
 import pygame
 class level:
     def start(self,game_info):
@@ -80,6 +81,7 @@ class level:
                     self.brick_group.add(brick.Brick(x,y,brick_type,self.coin_group))
                 else:
                     self.brick_group.add(brick.Brick(x, y, brick_type, self.powerup_group))
+        self.brick_group.add(peach.peach())
 
 
 
@@ -116,12 +118,12 @@ class level:
 
     def update(self, surface ,keys):
 
-        if self.player.rect.x > 8720:
+        if self.player.rect.right > 8749:
             self.finished = True
             self.next = 'congradulations'
             self.game_info['sound'] = 'congradulations'
 
-        #print(self.player.rect.x)
+        print(self.player.rect.x)
 
         self.current_time = pygame.time.get_ticks()
         self.player.update(keys,self)
