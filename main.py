@@ -10,7 +10,8 @@ def main():
         'main_menu': main_menu.MainMenu(),
         'load_screen': load_screen.load_Screen(),
         'level': level.level(),
-        'game_over':load_screen.GameOver()
+        'game_over':load_screen.GameOver(),
+        'congradulations': load_screen.Congradulations()
     }# 创建游戏的各个状态对象存放在一个字典中
 
     game = tools.Game(state_dict,'main_menu')       #让主控类来决定状态之间的变化

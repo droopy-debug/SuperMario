@@ -13,19 +13,26 @@ class Game:
         self.state_dict = state_dict
         self.state = self.state_dict[start_state]
         self.music = sound.Music()
-        self.music_state = 'main_theme'
+        self.music_state = '105'
+        self.music_change = False
 
 
     def update(self):
+        game_info = self.state.game_info
+        if game_info['sound'] != self.music_state:
+            print(game_info['sound'])
+            self.music_state = game_info['sound']
+            self.music.update(self.music_state)
+
         if self.state.finished:                      #如果当前阶段已经结束，就换成下一个阶段
-            game_info = self.state.game_info                          #信息传递在此实现，每次转换状态都将现时的游戏数据传入
+            #game_info = self.state.game_info                          #信息传递在此实现，每次转换状态都将现时的游戏数据传入
+
             next_state = self.state.next
             self.state.finished = False
             self.state = self.state_dict[next_state]
             self.state.start(game_info)
-            # print(self.state.music_state)
-            self.music.update(self.state.music_state)
         self.state.update(self.screen,self.keys)
+
 
 
     def run(self):

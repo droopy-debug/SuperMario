@@ -7,14 +7,16 @@ class Music:
         pygame.mixer.init()
         self.sound = {}
         self.setup_resource()
-        self.state = 'main_theme'
+        self.state = 1
         self.current_music = None
 
     def setup_resource(self):
         audio_list = {
             'main_theme': "resources/music/main_theme.ogg",
-            'death_wav': "resources/music/death.wav"
-
+            'death_wav': "resources/music/death.wav",
+            'game_over':'resources/music/game_over.ogg',
+            'speed_up' :'resources/music/main_theme_sped_up.ogg',
+            'congradulations':'resources/music/world_clear.wav'
         }
         for key, path in audio_list.items():
             self.sound[key] = pygame.mixer.Sound(path)
@@ -30,5 +32,5 @@ class Music:
             self.current_music.play()
 
     def update(self,state):
-        print(state)
+        # print(state)
         self.play_music(state)

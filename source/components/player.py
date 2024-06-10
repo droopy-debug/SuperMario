@@ -336,7 +336,7 @@ class player(pygame.sprite.Sprite):
         #print(self.y_velocity)
         self.frame_index = 6                  #死亡造型
         self.state = 'die'
-        print(self.anti_gravity)
+        #print(self.anti_gravity)
         self.death_timer = self.current_time
 
     def die(self,keys):

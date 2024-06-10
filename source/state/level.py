@@ -11,7 +11,6 @@ class level:
         self.game_info = game_info
         self.finished = False
         self.next = 'game_over'
-        self.music_state = 'main_theme'
         self.info = info.Info('level',self.game_info)
         self.load_map_data()
         self.setup_start_positions()
@@ -117,6 +116,13 @@ class level:
 
     def update(self, surface ,keys):
 
+        if self.player.rect.x > 8720:
+            self.finished = True
+            self.next = 'congradulations'
+            self.game_info['sound'] = 'congradulations'
+
+        #print(self.player.rect.x)
+
         self.current_time = pygame.time.get_ticks()
         self.player.update(keys,self)
 
@@ -146,6 +152,11 @@ class level:
     def is_frozen(self):                            #在形态改变时冻结地图
         return self.player.state in ['small2big','big2small','big2fire','fire2samll']
     def update_player_posision(self):                     #mario移动
+
+        # if self.player.x_velocity > 5:
+        #     self.game_info['sound'] = 'speed_up'
+        # else:
+        #     self.game_info['sound'] = 'main_theme'
 
         #x方向
         self.player.rect.x += self.player.x_velocity
@@ -180,6 +191,7 @@ class level:
             else:
                 # 小马里奥撞到敌人会直接狗带
                 self.player.go_die()
+                self.game_info['sound'] = 'death_wav'
 
         shell = pygame.sprite.spritecollideany(self.player,self.shell_group)
         if shell:
@@ -193,6 +205,7 @@ class level:
                 else:
                     # 小马里奥撞到敌人会直接狗带
                     self.player.go_die()
+                    self.game_info['sound'] = 'death_wav'
             else:
                 if self.player.rect.x < shell.rect.x:
                     shell.x_vel = 10
@@ -354,14 +367,13 @@ class level:
     def check_if_go_die(self):
         if self.player.rect.y > C.SCREEN_H:                        #下落到边界以外，触发死亡
             self.player.go_die()
+            self.game_info['sound'] = 'death_wav'
 
 
     def update_game_info(self):                         #死亡后更新数据
         if self.player.dead:
-            self.music_state = 'death_wav'
             self.game_info['lives'] -= 1
         if self.game_info['lives'] == 0:                          #死亡后选择结束还是重生
-
             self.next = 'game_over'
         else:
             self.next = 'load_screen'

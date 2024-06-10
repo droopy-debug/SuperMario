@@ -38,7 +38,7 @@ class Enemy(pygame.sprite.Sprite):
 
     def load_frames(self,frames_rects):
         for frames_rect in frames_rects:
-            left_frames = tools.get_image(setup.GRAPHICS['enemies'],*frames_rect,(0,0,0),C.ENEMY_MULTI)
+            left_frames = tools.get_image(setup.GRAPHICS['enemies2'],*frames_rect,(0,0,0),C.ENEMY_MULTI)
             right_frames = pygame.transform.flip(left_frames,True,False)
             self.left_frames.append(left_frames)
             self.right_frames.append(right_frames)

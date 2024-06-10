@@ -28,6 +28,8 @@ class Info:
             self.player_image = tools.get_image(setup.GRAPHICS['mario_bros'],178,32,12,16,(0,0,0),C.BG_MULTI)
         elif self.state == 'game_over':
             self.state_lables.append((self.create_lable('GAME OVER'), (280,300)))
+        elif self.state == 'congradulations':
+            self.state_lables.append((self.create_lable('Congradulations !'), (280, 300)))
 
 
     def create_info_labels(self):                     #通用信息

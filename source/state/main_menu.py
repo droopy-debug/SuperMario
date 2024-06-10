@@ -12,9 +12,8 @@ class MainMenu:
             'score':0,
             'coins':0,
             'lives':3,
-            'player_state':'samll'
+            'sound':  'main_theme',
         }
-        self.music_state = 'main_theme'
         self.start(game_info)
 
     def start(self,game_info):                                    #每次重置游戏

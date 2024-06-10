@@ -4,12 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ff881590-5e15-40a9-a8cb-4e8b38f048e8" name="更改" comment="the day last">
+    <list default="true" id="ff881590-5e15-40a9-a8cb-4e8b38f048e8" name="更改" comment="the day l6">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/source/components/enemy.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/enemy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/components/info.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/info.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/source/components/player.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/player.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/source/components/powerup.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/components/powerup.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/source/constants.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/constants.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/sound.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/sound.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/source/state/level.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/level.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/state/load_screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/load_screen.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/state/main_menu.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/state/main_menu.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/source/tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/source/tools.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,7 +50,7 @@
   }
 }</component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="ProjectErrors" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 5
@@ -71,10 +76,19 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;vcs.Git&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;org.jetbrains.plugins.github.ui.GithubSettingsConfigurable&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
+  <component name="RunAnythingCache">
+    <myKeys>
+      <visibility group="最近的项目" flag="true" />
+      <visibility group="运行 Python 文件" flag="true" />
+      <visibility group="运行 conda 命令" flag="true" />
+      <visibility group="运行 pip 命令" flag="true" />
+      <visibility group="运行配置" flag="true" />
+    </myKeys>
+  </component>
   <component name="RunManager" selected="Python.main">
     <configuration name="玩具代码" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="SuperMario" />
@@ -156,6 +170,7 @@
       <workItem from="1716441090589" duration="2681000" />
       <workItem from="1717424972825" duration="4258000" />
       <workItem from="1717490152315" duration="7245000" />
+      <workItem from="1718001590007" duration="94000" />
     </task>
     <task id="LOCAL-00001" summary="2">
       <option name="closed" value="true" />
@@ -189,7 +204,23 @@
       <option name="project" value="LOCAL" />
       <updated>1717932240229</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="the day l6">
+      <option name="closed" value="true" />
+      <created>1717938750467</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1717938750467</updated>
+    </task>
+    <task id="LOCAL-00006" summary="the day l6">
+      <option name="closed" value="true" />
+      <created>1717939574369</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1717939574369</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -209,7 +240,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="2" />
     <MESSAGE value="the day last" />
-    <option name="LAST_COMMIT_MESSAGE" value="the day last" />
+    <MESSAGE value="the day l6" />
+    <option name="LAST_COMMIT_MESSAGE" value="the day l6" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/SuperMario$tools.coverage" NAME="tools 覆盖结果" MODIFIED="1715072829739" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/source" />
