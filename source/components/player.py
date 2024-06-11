@@ -159,6 +159,7 @@ class player(pygame.sprite.Sprite):
             self.can_jump = True
 
     def small2big(self,keys):
+        self.fire = False
         frame_dur = 65
         sizes = [1,0,1,0,1,2,0,1,2,0,2]            #0 小 1 中 2 大
         frames_and_idx = [(self.small_normal_frames,0),(self.small_normal_frames,7),(self.big_normal_frames,0)]        #取帧组里的第几帧
@@ -168,6 +169,8 @@ class player(pygame.sprite.Sprite):
             self.changing_idx = 0                                                                             #变身帧造型序号
         elif self.current_time - self.transision_timer > frame_dur:
             self.transision_timer = self.current_time
+            #print(self.changing_idx)
+            self.changing_idx %= 11
             frames, idx = frames_and_idx[sizes[self.changing_idx]]
             self.change_player_image(frames, idx)
             self.changing_idx += 1

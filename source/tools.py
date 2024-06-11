@@ -20,7 +20,7 @@ class Game:
     def update(self):
         game_info = self.state.game_info
         if game_info['sound'] != self.music_state:
-            print(game_info['sound'])
+            #print(game_info['sound'])
             self.music_state = game_info['sound']
             self.music.update(self.music_state)
 

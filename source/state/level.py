@@ -123,7 +123,7 @@ class level:
             self.next = 'congradulations'
             self.game_info['sound'] = 'congradulations'
 
-        print(self.player.rect.x)
+        #print(self.player.rect.x)
 
         self.current_time = pygame.time.get_ticks()
         self.player.update(keys,self)
