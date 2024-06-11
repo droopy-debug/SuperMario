@@ -74,5 +74,5 @@ class MainMenu:
             'score':0,
             'coins':0,
             'lives':3,
-            'player_state':'samll'
+            'player_state':'small'
         })
