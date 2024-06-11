@@ -123,7 +123,7 @@ class level:
             self.next = 'congradulations'
             self.game_info['sound'] = 'congradulations'
 
-        print(self.player.rect.x)
+        #print(self.player.rect.x)
 
         self.current_time = pygame.time.get_ticks()
         self.player.update(keys,self)
@@ -188,6 +188,7 @@ class level:
             if self.player.big:
                 # 变大的马里奥撞到敌人会变小
                 self.player.state = 'big2small'
+                self.player.fire = False
                 self.player.hurt_immune = True  # 由大变小的时候有一段时间的伤害免疫
                 #print(self.player.hurt_immune)
             else:

@@ -37,6 +37,7 @@ class load_Screen:
                     self.finished = True
                     self.timer = 0
                     self.game_info['sound'] = 'main_theme'
+                    quit()
 
 
         self.draw(surface)
