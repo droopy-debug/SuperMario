@@ -1,4 +1,4 @@
-游戏框架：
+游戏主体框架：
 
 resoureces:  游戏资源
     graphics: 游戏图片
