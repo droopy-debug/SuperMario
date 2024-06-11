@@ -188,6 +188,7 @@ class level:
             if self.player.big:
                 # 变大的马里奥撞到敌人会变小
                 self.player.state = 'big2small'
+                self.player.fire = False
                 self.player.hurt_immune = True  # 由大变小的时候有一段时间的伤害免疫
                 #print(self.player.hurt_immune)
             else:

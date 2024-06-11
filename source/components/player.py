@@ -192,6 +192,7 @@ class player(pygame.sprite.Sprite):
             self.changing_idx = 0
         elif self.current_time - self.transision_timer > frame_dur:
             self.transision_timer = self.current_time
+            self.changing_idx %= 11
             frames, idx = frames_and_idx[sizes[self.changing_idx]]
             self.change_player_image(frames, idx)
             self.changing_idx += 1
@@ -207,6 +208,7 @@ class player(pygame.sprite.Sprite):
         sizes = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]                        #0 大火 1 普大
         frames_and_idx = [(self.big_fire_frames, 3), (self.big_normal_frames, 3)]
         if self.transision_timer == 0:
+            self.big = True
             self.fire = True
             self.transision_timer = self.current_time
             self.changing_idx = 0
